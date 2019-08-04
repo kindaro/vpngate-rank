@@ -23,6 +23,11 @@ common commons
                  , transformers
                  , mtl
                  , pretty-show
+                 , megaparsec
+                 , parser-combinators
+                 , extra
+                 , process
+                 , utf8-string
     default-language: Haskell2010
     default-extensions: DeriveGeneric
                       , TypeApplications
@@ -30,6 +35,7 @@ common commons
                       , RecordWildCards
                       , ExistentialQuantification
                       , StandaloneDeriving
+                      , BlockArguments
 
 library
     import: commons
