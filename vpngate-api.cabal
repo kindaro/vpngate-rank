@@ -11,16 +11,37 @@ common commons
                  , cassava
                  , bytestring
                  , text
+                 , base64-bytestring
+                 , path ^>=0.6
+                 , path-io
+                 , vector
+                 , from-sum
+                 , ip
+                 , typed-process
+                 , aeson
+                 , json-alt
+                 , transformers
+                 , mtl
+                 , pretty-show
     default-language: Haskell2010
     default-extensions: DeriveGeneric
                       , TypeApplications
+                      , OverloadedStrings
+                      , RecordWildCards
+                      , ExistentialQuantification
+                      , StandaloneDeriving
 
--- library
---     import: commons
---     exposed-modules: MyLib
---     hs-source-dirs: src
+library
+    import: commons
+    exposed-modules: VpnGate
+                   , Iperf
+                   , JsonIperf
+                   , OpenVpn
+                   , Types
+    hs-source-dirs: lib
 
 executable vpngate-api
     import: commons
---     build-depends: vpngate-api
+    build-depends: vpngate-api
+    hs-source-dirs: exe
     main-is: Main.hs
