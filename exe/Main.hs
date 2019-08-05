@@ -17,46 +17,62 @@ import qualified Data.Vector as Vector
 import Path
 import Path.IO
 import Control.FromSum
+import Data.List
+import Data.Maybe
+import Text.Show.Pretty
 
 import VpnGate
 import OpenVpn
 import Iperf
+import Types
 
 main :: IO ()
 main = do
 
+    -- Determine the directory to place the vpn configuration files to.
     cwd' <- getEnv "PWD"
     cwd <- parseAbsDir cwd'
     targetDirRelName <- parseRelDir "ovpns"
     let target = cwd </> targetDirRelName
+
+    -- Obtain the source.
     source <- fmap (!! 0) getArgs
     raw <- Lazy.readFile source
+
+    -- Sanitize the source. For some reason, there are these non-standard lines at the beginning
+    -- and the end.
     let body = Lazy.unlines . filter (not . Lazy.isPrefixOf "*") . Lazy.lines $ raw
-        -- For some reason, there are these non-standard lines at the beginning and the end.
-    let parsed = (fromEither error . decode @Row HasHeader) body
-    putStrLn $ "Done parsing! Number of entries: " ++ show (Vector.length parsed)
+
+    let rows = (fromEither error . decode @Row HasHeader) body
+    putStrLn $ "Done parsing! Number of entries: " ++ show (Vector.length rows)
+
+    -- Write the vpn configuration files.
     createDirIfMissing False target
-    let actions = fmap (writeOvpn target) parsed
-    sequence_ actions
+    paths <- traverse (\x -> fmap (target </>) $ rowToFileName x) rows
+    sequence_ $ Vector.zipWith writeRow paths rows
 
-writeOvpn :: Path Abs Dir -> Row -> IO ()
-writeOvpn path Row{..} = do
-    hostName' <- (parseRelFile . Text.unpack) hostName
-    filename <- hostName' <.> "ovpn"
+    -- Loop over the configurations, measuring each.
+    measurements <- traverse measureOvpn paths
+
+    putStrLn $ "Maximal speed:"
+    putStrLn $ ppShow (catMaybes . Vector.toList $ measurements)
+
+rowToFileName :: Row -> IO (Path Rel File)
+rowToFileName Row{..} = do
+    hostName' <- parseRelFile (Text.unpack hostName :: String)
+    fileName <- (hostName' <.> "ovpn" :: IO (Path Rel File))
+    return fileName
+
+writeRow :: Path Abs File -> Row -> IO ()
+writeRow path Row{..} = do
     let configData = (Text.pack . Char8.unpack . fromEither error . Base64.decode) openVPN_ConfigData_Base64
-    Text.writeFile (fromAbsFile $ path </> filename) configData
+    Text.writeFile (fromAbsFile path) configData
 
-measureOvpn :: Path Abs File  -- ^ `ovpn` configuration file.
-            -> IO Int         -- ^ Measure of performance of the respective intermediary.
-
-    -- I need to interact with the `openvpn` process and expect the line like "Initialization
-    -- Sequence Completed", and then any other line will signal error and I should terminate. A
-    -- well-behaved run of `openvpn` must initialize and let me do the work.
-
-measureOvpn conf = do
-    undefined
-    -- launch ovpn
-    -- expect the good line
-    -- launch iperf insistently
-    -- capture value of the first iperf that succeeds
-    -- return it
+measureOvpn :: Path Abs File                -- ^ `ovpn` configuration file.
+            -> IO (Maybe (Domain, Double))  -- ^ Measure of performance of the respective
+                                            --   intermediary.
+measureOvpn conf = withOpenVpn conf runIperfs >>= \r -> case r of
+    Left error -> print error >> return Nothing
+    Right r' -> case r' of
+        Left errors -> print errors >> return Nothing
+        Right result -> return $ Just (fmap getReceivedSpeed result)

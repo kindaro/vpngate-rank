@@ -5,6 +5,8 @@ import Data.Text (Text)
 import qualified Data.ByteString as Strict
 import GHC.Generics
 
+import JsonIperf
+
 data Row = Row
     { hostName
     , ip
@@ -25,3 +27,7 @@ data Row = Row
 
 instance FromRecord Row
 instance ToRecord Row
+
+getSentSpeed, getReceivedSpeed :: TopLevel -> Double
+getSentSpeed     = sumSentBitsPerSecond     . endSumSent     . topLevelEnd
+getReceivedSpeed = sumReceivedBitsPerSecond . endSumReceived . topLevelEnd
