@@ -23,10 +23,10 @@ import Types
 import Iperf
 import JsonIperf
 
-withOpenVpn :: Show a
-            => Path Abs File  -- ^ OpenVpn configuration.
-            -> IO a -> IO (Either Error a)
-withOpenVpn conf io = do
+newtype Conf = Conf { conf :: Path Abs File } deriving (Show, Eq, Ord)
+
+withOpenVpn :: Conf -> IO a -> IO (Either Error a)
+withOpenVpn Conf{..} io = do
     processConfig <- openVpn
     bracket (startProcess processConfig) (interruptProcessGroupOf . unsafeProcessHandle) $ \process -> do
         let output = getStdout process
@@ -46,7 +46,7 @@ withOpenVpn conf io = do
                         else return $ Right ioResult
         if isRight result
            then putStrLn "Right result achieved."
-           else putStrLn $ "Error has occured: " ++ show result
+           else putStrLn $ "Error has occured."
         return result
   where
     openVpn = do

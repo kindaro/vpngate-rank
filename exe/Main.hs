@@ -71,7 +71,7 @@ writeRow path Row{..} = do
 measureOvpn :: Path Abs File                -- ^ `ovpn` configuration file.
             -> IO (Maybe (Domain, Double))  -- ^ Measure of performance of the respective
                                             --   intermediary.
-measureOvpn conf = withOpenVpn conf runIperfs >>= \r -> case r of
+measureOvpn conf = withOpenVpn (Conf conf) runIperfs >>= \r -> case r of
     Left error -> print error >> return Nothing
     Right r' -> case r' of
         Left errors -> print errors >> return Nothing
