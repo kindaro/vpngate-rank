@@ -1,20 +1,20 @@
 module OpenVpn where
 
-import RIO hiding (withSystemTempFile)
+import RIO
 
 import System.Process.Typed
 import Path
-import Path.IO
 import Text.Megaparsec
 import Text.Megaparsec.Byte
 import Control.Monad.Extra
-import Data.Text (Text)
+import RIO.Text (Text)
 import qualified Data.Text.IO as Text
 import System.IO.Error
 import Data.ByteString.Lazy.UTF8 (toString)
 import Data.Char
 import System.Process (interruptProcessGroupOf)
 import System.IO (SeekMode(..))
+import Control.Monad.Catch (MonadMask)
 
 import Types
 
@@ -28,24 +28,30 @@ newtype Conf = Conf { conf :: Text } deriving (Show, Eq, Ord)
 --     name <- parseAbsFile name'
 --     action name handle
 
-withOpenVpn :: Conf -> IO a -> IO (Either Error a)
-withOpenVpn Conf{..} io = withSystemTempFile "openvpn.conf" $ \confPath confHandle -> do
-    Text.hPutStr confHandle conf
-    hSeek confHandle AbsoluteSeek 0
-    processConfig <- openVpn confPath
-    bracket (startProcess processConfig) (interruptProcessGroupOf . unsafeProcessHandle) $ \process -> do
-        let output = getStdout process
-        hSetBuffering output LineBuffering  -- By now, the connection is established.
-        loopM analyzeOutputLine output
-        ioResult <- io
-          -- If there is anything else in the handle, it means connection was shaky and some events
-          -- were logged.
-        isShaky <- hReady output `catchIOError` \e -> if isEOFError e then return True else ioError e
-        result <- if isShaky
-                        then return $ Left . Error $ "VPN failure."
-                        else return $ Right ioResult
-        return result
+withOpenVpn :: forall m a. (MonadIO m, MonadUnliftIO m, MonadThrow m) => Conf -> m a -> m (Either Error a)
+withOpenVpn Conf{..} io = withSystemTempFile "openvpn.conf" $ \confPath' confHandle -> do
+    confPath <- parseAbsFile confPath'
+    doStuff confPath confHandle
+
   where
+    doStuff :: Path Abs File -> Handle -> m (Either Error a)
+    doStuff confPath confHandle = do
+        writeFileUtf8 (fromAbsFile confPath) conf
+        hSeek confHandle AbsoluteSeek 0
+        processConfig <- openVpn confPath
+        bracket (liftIO $ startProcess processConfig) (liftIO . interruptProcessGroupOf . unsafeProcessHandle) $ \process -> do
+            let output = getStdout process
+            hSetBuffering output LineBuffering  -- By now, the connection is established.
+            liftIO $ loopM analyzeOutputLine output
+            ioResult <- io
+              -- If there is anything else in the handle, it means connection was shaky and some events
+              -- were logged.
+            isShaky <- liftIO $ hReady output `catchIOError` \e -> if isEOFError e then return True else ioError e
+            result <- if isShaky
+                            then return $ Left . Error $ "VPN failure."
+                            else return $ Right ioResult
+            return result
+
     openVpn confPath = do
         let confPathUntyped = fromAbsFile confPath
         user  <- fmap (filter isAlphaNum . toString) $ readProcessStdout_ "id --user  --name"

@@ -2,48 +2,47 @@ module Main where
 
 import RIO
 
-import Prelude hiding (readFile)
-import qualified Data.ByteString.Lazy as Lazy
+import qualified RIO.ByteString.Lazy as Lazy
 import qualified Data.ByteString.Lazy.Char8 as Lazy (lines, unlines)
 import qualified Data.ByteString.Base64 as Base64
-import System.Environment
+import System.Environment (getArgs)
 import Data.Csv
-import Data.Text (Text)
-import qualified Data.Text as Text
-import qualified Data.Vector as Vector
+import qualified RIO.Text as Text
+import qualified RIO.Vector as Vector
 import Path
 import Text.Show.Pretty
-import qualified Data.ByteString.UTF8 as StrictUTF8
 
 import VpnGate
 import OpenVpn
 import Iperf
 import Types
 
-instance Exception String
+default (Text)
 
 main :: IO ()
-main = do
+main = runSimpleApp do
 
     -- Obtain the source.
-    source <- fmap (!! 0) getArgs
+    source <- liftIO getArgs >>= \x -> case listToMaybe x of
+        Nothing -> throwM . Error $ "Expected one argument."
+        Just y  -> return y
     raw <- Lazy.readFile source
 
     -- Sanitize the source. For some reason, there are these non-standard lines at the beginning
     -- and the end.
     let body = Lazy.unlines . filter (not . Lazy.isPrefixOf "*") . Lazy.lines $ raw
 
-    rows <- (fromEither . decode @Row HasHeader) body :: IO (Vector Row)
-    putStrLn $ "Done parsing! Number of entries: " ++ show (Vector.length rows)
+    rows <- either (throwM . Error) pure $ decode @Row HasHeader body
+    logWarn $ "Done parsing! Number of entries: " <> display (Vector.length rows)
 
     -- Loop over the configurations, measuring each.
     measurements <- traverse (obtainConf >=> measureOvpn) rows
 
-    putStrLn $ "Maximal speed:"
-    putStrLn $ ppShow (catMaybes . Vector.toList $ measurements)
+    logWarn "Maximal speed:"
+    logWarn . display . Text.pack . ppShow . catMaybes . Vector.toList $ measurements
 
-obtainConf :: Row -> IO Text
-obtainConf = fmap (Text.pack . StrictUTF8.toString) . fromEither . Base64.decode . openVPN_ConfigData_Base64
+obtainConf :: Row -> RIO env Text
+obtainConf = fmap decodeUtf8Lenient . either (throwM . Error) pure . Base64.decode . openVPN_ConfigData_Base64
 
 rowToFileName :: Row -> IO (Path Rel File)
 rowToFileName Row{..} = do
@@ -51,11 +50,9 @@ rowToFileName Row{..} = do
     fileName <- (hostName' <.> "ovpn" :: IO (Path Rel File))
     return fileName
 
-measureOvpn :: Text                         -- ^ `ovpn` configuration.
-            -> IO (Maybe (Domain, Double))  -- ^ Measure of performance of the respective
-                                            --   intermediary.
-measureOvpn conf = withOpenVpn (Conf conf) runIperfs >>= \r -> case r of
-    Left e -> print e >> return Nothing
+measureOvpn :: HasLogFunc env => Text -> RIO env (Maybe (Domain, Double))
+measureOvpn conf = withOpenVpn (Conf conf) (liftIO runIperfs) >>= \r -> case r of
+    Left e -> (logWarn . display . Text.pack . ppShow) e >> return Nothing
     Right r' -> case r' of
-        Left es -> print es >> return Nothing
+        Left es -> (logWarn . display . Text.pack . ppShow) es >> return Nothing
         Right result -> return $ Just (fmap getReceivedSpeed result)

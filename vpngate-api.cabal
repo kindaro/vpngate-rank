@@ -42,6 +42,8 @@ common commons
                       , NoImplicitPrelude
                       , TypeSynonymInstances
                       , FlexibleInstances
+                      , ScopedTypeVariables
+                      , FlexibleContexts
     ghc-options:
         -Wall
         -Wcompat
@@ -50,7 +52,8 @@ common commons
         -Wincomplete-uni-patterns
         -Wpartial-fields
         -Wredundant-constraints
-
+        -Wnoncanonical-monad-instances
+        -Wnoncanonical-monadfail-instances
 
 library
     import: commons

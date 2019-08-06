@@ -4,7 +4,6 @@ import RIO
 
 import Data.Aeson (eitherDecode)
 import System.Process.Typed
-import Data.Text (Text)
 import qualified Data.Text as Text
 
 import JsonIperf
