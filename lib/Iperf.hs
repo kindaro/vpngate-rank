@@ -1,5 +1,7 @@
 module Iperf where
 
+import RIO
+
 import Data.Word
 import Data.Aeson (eitherDecode)
 import System.Process.Typed

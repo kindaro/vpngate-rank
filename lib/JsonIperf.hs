@@ -8,6 +8,8 @@
 
 module JsonIperf where
 
+import Prelude
+
 import           System.Exit        (exitFailure, exitSuccess)
 import           System.IO          (stderr, hPutStrLn)
 import qualified Data.ByteString.Lazy.Char8 as BSL

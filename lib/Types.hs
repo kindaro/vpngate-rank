@@ -1,5 +1,7 @@
 module Types where
 
+import RIO
+
 import Data.Text (Text)
 import Data.String
 

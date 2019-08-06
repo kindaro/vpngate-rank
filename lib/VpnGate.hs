@@ -1,5 +1,7 @@
 module VpnGate where
 
+import RIO
+
 import Data.Csv
 import Data.Text (Text)
 import qualified Data.ByteString as Strict

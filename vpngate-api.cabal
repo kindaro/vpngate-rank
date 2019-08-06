@@ -28,6 +28,9 @@ common commons
                  , extra
                  , process
                  , utf8-string
+                 , temporary
+                 , exceptions
+                 , rio
     default-language: Haskell2010
     default-extensions: DeriveGeneric
                       , TypeApplications
@@ -36,6 +39,9 @@ common commons
                       , ExistentialQuantification
                       , StandaloneDeriving
                       , BlockArguments
+                      , NoImplicitPrelude
+                      , TypeSynonymInstances
+                      , FlexibleInstances
 
 library
     import: commons

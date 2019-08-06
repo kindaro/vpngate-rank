@@ -1,5 +1,7 @@
 module Main where
 
+import RIO
+
 import Prelude hiding (readFile)
 import qualified Data.ByteString.Lazy as Lazy
 import qualified Data.ByteString.Lazy.Char8 as Lazy (lines, unlines)
@@ -16,15 +18,17 @@ import Data.Char
 import qualified Data.Vector as Vector
 import Path
 import Path.IO
-import Control.FromSum
 import Data.List
 import Data.Maybe
 import Text.Show.Pretty
+import qualified Data.ByteString.UTF8 as StrictUTF8
 
 import VpnGate
 import OpenVpn
 import Iperf
 import Types
+
+instance Exception String
 
 main :: IO ()
 main = do
@@ -43,19 +47,17 @@ main = do
     -- and the end.
     let body = Lazy.unlines . filter (not . Lazy.isPrefixOf "*") . Lazy.lines $ raw
 
-    let rows = (fromEither error . decode @Row HasHeader) body
+    rows <- (fromEither . decode @Row HasHeader) body :: IO (Vector Row)
     putStrLn $ "Done parsing! Number of entries: " ++ show (Vector.length rows)
 
-    -- Write the vpn configuration files.
-    createDirIfMissing False target
-    paths <- traverse (\x -> fmap (target </>) $ rowToFileName x) rows
-    sequence_ $ Vector.zipWith writeRow paths rows
-
     -- Loop over the configurations, measuring each.
-    measurements <- traverse measureOvpn paths
+    measurements <- traverse (obtainConf >=> measureOvpn) rows
 
     putStrLn $ "Maximal speed:"
     putStrLn $ ppShow (catMaybes . Vector.toList $ measurements)
+
+obtainConf :: Row -> IO Text
+obtainConf = fmap (Text.pack . StrictUTF8.toString) . fromEither . Base64.decode . openVPN_ConfigData_Base64
 
 rowToFileName :: Row -> IO (Path Rel File)
 rowToFileName Row{..} = do
@@ -63,12 +65,7 @@ rowToFileName Row{..} = do
     fileName <- (hostName' <.> "ovpn" :: IO (Path Rel File))
     return fileName
 
-writeRow :: Path Abs File -> Row -> IO ()
-writeRow path Row{..} = do
-    let configData = (Text.pack . Char8.unpack . fromEither error . Base64.decode) openVPN_ConfigData_Base64
-    Text.writeFile (fromAbsFile path) configData
-
-measureOvpn :: Path Abs File                -- ^ `ovpn` configuration file.
+measureOvpn :: Text                         -- ^ `ovpn` configuration.
             -> IO (Maybe (Domain, Double))  -- ^ Measure of performance of the respective
                                             --   intermediary.
 measureOvpn conf = withOpenVpn (Conf conf) runIperfs >>= \r -> case r of
