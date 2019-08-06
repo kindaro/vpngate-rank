@@ -14,8 +14,7 @@ import           System.Exit        (exitFailure, exitSuccess)
 import           System.IO          (stderr, hPutStrLn)
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import           System.Environment (getArgs)
-import           Control.Monad      (forM_, mzero, join)
-import           Control.Applicative
+import           Control.Monad      (forM_, mzero)
 import           Data.Aeson.AutoType.Alternative
 import           Data.Aeson(eitherDecode, Value(..), FromJSON(..), ToJSON(..),
                             pairs,
@@ -340,7 +339,7 @@ parse filename = do
     input <- BSL.readFile filename
     case eitherDecode input of
       Left  err -> fatal $ case (eitherDecode input :: Either String Value) of
-                           Left  err -> "Invalid JSON file: " ++ filename ++ " ++ err"
+                           Left  err' -> "Invalid JSON file: " ++ filename ++ "\n" ++ err'
                            Right _   -> "Mismatched JSON value from file: " ++ filename
                                      ++ "\n" ++ err
       Right r   -> return (r :: TopLevel)

@@ -3,7 +3,6 @@ module Types where
 import RIO
 
 import Data.Text (Text)
-import Data.String
 
 data Error = forall a. Show a => Error { errorRaw :: a }
 

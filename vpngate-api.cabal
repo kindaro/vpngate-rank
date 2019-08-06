@@ -42,6 +42,15 @@ common commons
                       , NoImplicitPrelude
                       , TypeSynonymInstances
                       , FlexibleInstances
+    ghc-options:
+        -Wall
+        -Wcompat
+        -Widentities
+        -Wincomplete-record-updates
+        -Wincomplete-uni-patterns
+        -Wpartial-fields
+        -Wredundant-constraints
+
 
 library
     import: commons

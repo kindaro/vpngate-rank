@@ -5,7 +5,6 @@ import RIO
 import Data.Csv
 import Data.Text (Text)
 import qualified Data.ByteString as Strict
-import GHC.Generics
 
 import JsonIperf
 

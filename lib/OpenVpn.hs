@@ -7,27 +7,18 @@ import Path
 import Path.IO
 import Text.Megaparsec
 import Text.Megaparsec.Byte
-import Control.Monad.Combinators
-import Data.Void
 import Control.Monad.Extra
 import Data.Text (Text)
-import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
-import Data.Either
 import System.IO.Error
-import qualified Data.ByteString.Lazy as Lazy
-import qualified Data.ByteString as Strict
 import Data.ByteString.Lazy.UTF8 (toString)
-import qualified Data.ByteString.UTF8 as StrictUTF8
 import Data.Char
 import System.Process (interruptProcessGroupOf)
-import Control.Monad.Trans (MonadIO)
-import Control.Monad.Catch (MonadMask)
 import System.IO (SeekMode(..))
 
 import Types
-import Iperf
-import JsonIperf
+
+default (Text)
 
 newtype Conf = Conf { conf :: Text } deriving (Show, Eq, Ord)
 
@@ -62,10 +53,10 @@ withOpenVpn Conf{..} io = withSystemTempFile "openvpn.conf" $ \confPath confHand
         return $ setStdout createPipe
             $ proc "sudo" ["openvpn", "--user", user, "--group", group, "--config", confPathUntyped]
 
-    analyzeOutputLine handle = do
-        line <- Text.hGetLine handle
+    analyzeOutputLine h = do
+        line <- Text.hGetLine h
         return case parseMaybe connected line of
-            Nothing -> Left handle
+            Nothing -> Left h
             Just _  -> Right ()
 
     connected :: Parsec Void Text String

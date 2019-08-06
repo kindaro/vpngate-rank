@@ -2,16 +2,10 @@ module Iperf where
 
 import RIO
 
-import Data.Word
 import Data.Aeson (eitherDecode)
 import System.Process.Typed
-import Control.Monad.Trans.Maybe
 import Data.Text (Text)
 import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Text
-import qualified Data.Text.Encoding.Error as Text
-import System.Exit
-import qualified Data.ByteString.Lazy as Lazy
 
 import JsonIperf
 import Types
@@ -45,7 +39,7 @@ runIperf target = readProcess iperf >>= \(exitCode, out, err) -> case exitCode o
             ExitFailure _ -> return (Left . Error $ err)
             ExitSuccess   -> case eitherDecode out of
                 Right r  -> return (Right r)
-                Left err -> return (Left . Error $ err)
+                Left err' -> return (Left . Error $ err')
     where iperf = proc "iperf3" . fmap Text.unpack $ iperfOptions ++ ["--client", domainText target]
 
 runUntilHappy :: (a -> IO (Either Error b)) -> [a] -> IO ([(a, Error)], Maybe (a, b))
@@ -55,5 +49,5 @@ runUntilHappy program (target: targets) = program target >>= \r' -> case r' of
         Left  e -> runUntilHappy program targets >>= \(errs, x) -> return ((target, e): errs, x)
 
 runIperfs :: IO (Either [(Domain, Error)] (Domain, TopLevel))
-runIperfs = fmap handle (runUntilHappy runIperf servers)
-    where handle (errs, out) = maybe (Left errs) Right out
+runIperfs = fmap fixErrors (runUntilHappy runIperf servers)
+    where fixErrors (errs, out) = maybe (Left errs) Right out
