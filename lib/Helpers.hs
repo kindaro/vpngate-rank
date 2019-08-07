@@ -33,5 +33,6 @@ redundant = undefined
 
 data Exceptions = forall e. Exception e => Exceptions e
 
-handleSynchronous :: Exception e => (e -> IO a) -> IO a -> IO (Either e a)
-handleSynchronous = undefined
+handleSynchronous :: IO a -> IO (Either SomeException a)
+handleSynchronous action = fmap Right action `catches`
+    [ Handler (throw :: SomeAsyncException -> w), Handler \e -> (return . Left) e ]
