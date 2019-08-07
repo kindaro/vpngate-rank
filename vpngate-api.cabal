@@ -62,6 +62,7 @@ library
                    , JsonIperf
                    , OpenVpn
                    , Types
+                   , Helpers
     hs-source-dirs: lib
 
 executable vpngate-api
