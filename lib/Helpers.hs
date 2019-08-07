@@ -1,8 +1,9 @@
 module Helpers where
 
 import Prelude
-import Control.Exception
-
+import Control.Exception (SomeAsyncException, ArithException(Overflow), throw)
+import Control.Monad.Catch
+import System.Random
 
 -- I will maybe call this module "sequence" or something like that.
 
@@ -15,9 +16,17 @@ independent :: (Monad (m e), Foldable f, Monoid (q e), Monoid (q a))
 
 independent actions = undefined
 
-insistent :: (Monad (m e), Monoid (q e))
-          => Word -> m e a -> m (q e) (Maybe a)
-insistent = undefined
+insistent :: MonadCatch m => Word -> m a -> m ([SomeException], Maybe a)
+insistent 0 action = return ([ ], Nothing)
+insistent n action = do
+    x <- handleSynchronous action
+    case x of
+        Left e -> do
+            (es, ma) <- insistent (n - 1) action
+            return (e: es, ma)
+        Right y -> return ([ ], Just y)
+
+
 
 redundant :: (Monad (m e), Foldable f, Monoid (q e))
           => f (m e a) -> m (q e) a
@@ -33,6 +42,8 @@ redundant = undefined
 
 data Exceptions = forall e. Exception e => Exceptions e
 
-handleSynchronous :: IO a -> IO (Either SomeException a)
+handleSynchronous :: MonadCatch m => m a -> m (Either SomeException a)
 handleSynchronous action = fmap Right action `catches`
     [ Handler (throw :: SomeAsyncException -> w), Handler \e -> (return . Left) e ]
+
+oftenFail = randomRIO (1 :: Word, 10) >>= \x -> if x /= 7 then throw Overflow else return ()
