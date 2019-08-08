@@ -14,8 +14,14 @@ import Data.List (genericReplicate)
 --
 -- An asynchronous exception must lead to immediate termination.
 --
-independent :: (Monad (m e), Foldable f, Monoid (q e), Monoid (q a))
-            => f (m e a) -> m (q e) (q a)
+-- independent :: forall m q f a. (MonadPlus m, MonadCatch m, MonadWriter (q SomeException) m, Functor f, Foldable f, Alternative q)
+--             => f (m a) -> m (q a)
+independent :: (MonadWriter (q SomeException) m, MonadCatch m, Alternative m, Alternative q)
+            => [m a] -> m [a]
+independent [ ] = return [ ]
+independent (x: xs) = do
+    r <- fmap pure x `catchSynchronous` \e -> (tell . pure) e *> return empty
+    fmap (r ++) (independent xs)
 
 independent actions = undefined
 
