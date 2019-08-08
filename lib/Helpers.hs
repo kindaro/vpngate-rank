@@ -47,3 +47,8 @@ catchSynchronous action handler = action `catches`
     [ Handler (throw :: SomeAsyncException -> w), Handler handler ]
 
 oftenFail = randomRIO (1 :: Word, 10) >>= \x -> if x /= 7 then throw Overflow else return ()
+
+-- λ runWriterT $ insistent 10 (lift oftenFail) :: IO ((), Proxy SomeException)
+-- ((),Proxy)
+-- λ runWriterT $ insistent 10 (lift oftenFail) :: IO ((), Proxy SomeException)
+-- *** Exception: SequencingFailure
