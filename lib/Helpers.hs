@@ -6,6 +6,7 @@ import Control.Monad.Catch
 import Control.Monad.Writer.Strict
 import System.Random
 import Control.Applicative
+import Data.List (genericReplicate)
 
 -- I will maybe call this module "sequence" or something like that.
 
@@ -20,16 +21,11 @@ independent actions = undefined
 
 insistent :: (MonadCatch m, MonadWriter (q SomeException) m, Alternative q)
           => Word -> m a -> m a
-insistent 0 action = throwM SequencingFailure
-insistent n action = action `catchSynchronous` \e -> do
-                                                        tell (pure e)
-                                                        insistent (n - 1) action
+insistent n = redundant . genericReplicate n
 
-
-
-redundant :: (Monad (m e), Foldable f, Monoid (q e))
-          => f (m e a) -> m (q e) a
-redundant = undefined
+redundant :: (MonadCatch m, MonadWriter (q SomeException) m, Foldable f, Alternative q)
+          => f (m a) -> m a
+redundant = foldr1 f where f x y = x `catchSynchronous` \e -> (tell . pure) e *> y
 
 -- Log everything going in and out, and provide the same for analysis.
 --
