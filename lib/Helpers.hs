@@ -23,7 +23,11 @@ independent (x: xs) = do
     r <- fmap pure x `catchSynchronous` \e -> (tell . pure) e *> return empty
     fmap (r ++) (independent xs)
 
-independent actions = undefined
+interleaved :: MonadCatch m => [m a] -> m [Either SomeException a]
+interleaved [ ] = return [ ]
+interleaved (x: xs) = do
+    r <- fmap (pure . Right) x `catchSynchronous` \e -> (pure . pure . Left) (e:: SomeException)
+    fmap (r ++) (interleaved xs)
 
 insistent :: (MonadCatch m, MonadWriter (q SomeException) m, Alternative q)
           => Word -> m a -> m a
