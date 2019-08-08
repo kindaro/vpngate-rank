@@ -1,4 +1,4 @@
-module Helpers where
+module Sequencer where
 
 import Prelude
 import Control.Exception (SomeAsyncException, ArithException(Overflow), throw)
@@ -7,8 +7,6 @@ import Control.Monad.Writer.Strict
 import System.Random
 import Control.Applicative
 import Data.List (genericReplicate)
-
--- I will maybe call this module "sequence" or something like that.
 
 -- Run all of the action and collect all the results and synchronous exceptions.
 --

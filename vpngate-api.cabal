@@ -63,7 +63,7 @@ library
                    , JsonIperf
                    , OpenVpn
                    , Types
-                   , Helpers
+                   , Sequencer
     hs-source-dirs: lib
 
 executable vpngate-api
