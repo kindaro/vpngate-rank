@@ -6,6 +6,7 @@ import Control.Monad.Catch
 import Control.Monad.Writer.Strict
 import System.Random
 import Control.Applicative
+import Data.Foldable (asum)
 import Data.List (genericReplicate)
 
 -- Run all of the action and collect all the results and synchronous exceptions.
@@ -14,12 +15,12 @@ import Data.List (genericReplicate)
 --
 -- independent :: forall m q f a. (MonadPlus m, MonadCatch m, MonadWriter (q SomeException) m, Functor f, Foldable f, Alternative q)
 --             => f (m a) -> m (q a)
-independent :: (MonadWriter (q SomeException) m, MonadCatch m, Alternative m, Alternative q)
-            => [m a] -> m [a]
-independent [ ] = return [ ]
-independent (x: xs) = do
-    r <- fmap pure x `logSynchronous` const (pure empty)
-    fmap (r ++) (independent xs)
+
+independent :: forall q m t s a. ( MonadWriter (q SomeException) m, MonadCatch m
+                                 , Traversable t, Alternative q, Alternative s )
+            => t (m a) -> m (s a)
+independent = fmap asum . sequence . fmap f
+    where f u = fmap pure u `logSynchronous` const (return empty)
 
 interleaved :: MonadCatch m => [m a] -> m [Either SomeException a]
 interleaved [ ] = return [ ]
