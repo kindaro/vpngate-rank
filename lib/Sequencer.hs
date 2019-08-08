@@ -16,11 +16,16 @@ import Data.List (genericReplicate)
 -- independent :: forall m q f a. (MonadPlus m, MonadCatch m, MonadWriter (q SomeException) m, Functor f, Foldable f, Alternative q)
 --             => f (m a) -> m (q a)
 
-independent :: forall q m t s a. ( MonadWriter (q SomeException) m, MonadCatch m
+independent :: forall q m t s a e. ( Exception e, MonadWriter (q e) m, MonadCatch m
                                  , Traversable t, Alternative q, Alternative s )
             => t (m a) -> m (s a)
 independent = fmap asum . sequence . fmap f
     where f u = fmap pure u `logSynchronous` const (return empty)
+
+independent' :: forall m t s a e. ( Exception e, MonadCatch m, Traversable t, Alternative s )
+            => (e -> m ()) -> t (m a) -> m (s a)
+independent' log = fmap asum . sequence . fmap f
+    where f u = fmap pure u `catchSynchronous` \e -> log e *> return empty
 
 interleaved :: MonadCatch m => [m a] -> m [Either SomeException a]
 interleaved [ ] = return [ ]
