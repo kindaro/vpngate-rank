@@ -3,7 +3,9 @@ module Helpers where
 import Prelude
 import Control.Exception (SomeAsyncException, ArithException(Overflow), throw)
 import Control.Monad.Catch
+import Control.Monad.Writer.Strict
 import System.Random
+import Control.Applicative
 
 -- I will maybe call this module "sequence" or something like that.
 
@@ -16,15 +18,12 @@ independent :: (Monad (m e), Foldable f, Monoid (q e), Monoid (q a))
 
 independent actions = undefined
 
-insistent :: MonadCatch m => Word -> m a -> m ([SomeException], Maybe a)
-insistent 0 action = return ([ ], Nothing)
-insistent n action = do
-    x <- handleSynchronous action
-    case x of
-        Left e -> do
-            (es, ma) <- insistent (n - 1) action
-            return (e: es, ma)
-        Right y -> return ([ ], Just y)
+insistent :: (MonadCatch m, MonadWriter (q SomeException) m, Alternative q)
+          => Word -> m a -> m a
+insistent 0 action = throwM SequencingFailure
+insistent n action = action `catchSynchronous` \e -> do
+                                                        tell (pure e)
+                                                        insistent (n - 1) action
 
 
 
@@ -40,10 +39,11 @@ redundant = undefined
 --
 -- transparent :: ProcessDescription a b c -> 
 
-data Exceptions = forall e. Exception e => Exceptions e
+data SequencingFailure = SequencingFailure deriving Show
+instance Exception SequencingFailure where displayException _ = "sequencing failure"
 
-handleSynchronous :: MonadCatch m => m a -> m (Either SomeException a)
-handleSynchronous action = fmap Right action `catches`
-    [ Handler (throw :: SomeAsyncException -> w), Handler \e -> (return . Left) e ]
+catchSynchronous :: (Exception e, MonadCatch m) => m a -> (e -> m a) -> m a
+catchSynchronous action handler = action `catches`
+    [ Handler (throw :: SomeAsyncException -> w), Handler handler ]
 
 oftenFail = randomRIO (1 :: Word, 10) >>= \x -> if x /= 7 then throw Overflow else return ()
