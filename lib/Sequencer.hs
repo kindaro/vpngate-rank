@@ -18,7 +18,7 @@ independent :: (MonadWriter (q SomeException) m, MonadCatch m, Alternative m, Al
             => [m a] -> m [a]
 independent [ ] = return [ ]
 independent (x: xs) = do
-    r <- fmap pure x `catchSynchronous` \e -> (tell . pure) e *> return empty
+    r <- fmap pure x `logSynchronous` const (pure empty)
     fmap (r ++) (independent xs)
 
 interleaved :: MonadCatch m => [m a] -> m [Either SomeException a]
@@ -33,7 +33,7 @@ insistent n = redundant . genericReplicate n
 
 redundant :: (MonadCatch m, MonadWriter (q SomeException) m, Foldable f, Alternative q)
           => f (m a) -> m a
-redundant = foldr1 f where f x y = x `catchSynchronous` \e -> (tell . pure) e *> y
+redundant = foldr1 f where f x y = x `logSynchronous` const y
 
 -- Log everything going in and out, and provide the same for analysis.
 --
@@ -49,6 +49,10 @@ instance Exception SequencingFailure where displayException _ = "sequencing fail
 catchSynchronous :: (Exception e, MonadCatch m) => m a -> (e -> m a) -> m a
 catchSynchronous action handler = action `catches`
     [ Handler (throw :: SomeAsyncException -> w), Handler handler ]
+
+logSynchronous :: (Exception e, MonadCatch m, MonadWriter (q e) m, Alternative q)
+                 => m a -> (e -> m a) -> m a
+logSynchronous action handler = catchSynchronous action (\e -> (tell . pure) e *> handler e)
 
 oftenFail = randomRIO (1 :: Word, 10) >>= \x -> if x /= 7 then throw Overflow else return ()
 
