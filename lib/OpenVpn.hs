@@ -14,7 +14,6 @@ import Data.ByteString.Lazy.UTF8 (toString)
 import Data.Char
 import System.Process (interruptProcessGroupOf)
 import System.IO (SeekMode(..))
-import Control.Monad.Catch (MonadMask)
 
 import Types
 

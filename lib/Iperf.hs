@@ -5,6 +5,7 @@ import RIO
 import Data.Aeson (eitherDecode)
 import System.Process.Typed
 import qualified Data.Text as Text
+import Control.Sequencer
 
 import JsonIperf
 import Types
@@ -41,12 +42,6 @@ runIperf target = readProcess iperf >>= \(exitCode, out, err) -> case exitCode o
                 Left err' -> return (Left . Error $ err')
     where iperf = proc "iperf3" . fmap Text.unpack $ iperfOptions ++ ["--client", domainText target]
 
-runUntilHappy :: (a -> IO (Either Error b)) -> [a] -> IO ([(a, Error)], Maybe (a, b))
-runUntilHappy _       [ ]     = return ([ ], Nothing)
-runUntilHappy program (target: targets) = program target >>= \r' -> case r' of
-        Right r -> return ([ ], Just (target, r))
-        Left  e -> runUntilHappy program targets >>= \(errs, x) -> return ((target, e): errs, x)
-
-runIperfs :: IO (Either [(Domain, Error)] (Domain, TopLevel))
-runIperfs = fmap fixErrors (runUntilHappy runIperf servers)
+runIperfs :: IO (Domain, Either Error TopLevel)
+runIperfs = redundant_ (fmap (traverse runIperf . (\x -> (x, x))) servers)
     where fixErrors (errs, out) = maybe (Left errs) Right out
