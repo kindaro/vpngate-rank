@@ -8,7 +8,7 @@ import qualified Data.ByteString as Strict
 
 import JsonIperf
 
-data Row = Row
+data Entry = Entry
     { hostName
     , ip
     , score
@@ -26,8 +26,8 @@ data Row = Row
     , openVPN_ConfigData_Base64 :: Strict.ByteString
     } deriving (Generic, Show)
 
-instance FromRecord Row
-instance ToRecord Row
+instance FromRecord Entry
+instance ToRecord Entry
 
 getSentSpeed, getReceivedSpeed :: TopLevel -> Double
 getSentSpeed     = sumSentBitsPerSecond     . endSumSent     . topLevelEnd

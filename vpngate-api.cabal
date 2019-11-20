@@ -57,6 +57,7 @@ common commons
         -Wredundant-constraints
         -Wnoncanonical-monad-instances
         -Wnoncanonical-monadfail-instances
+        -fdefer-typed-holes
 
 library
     import: commons

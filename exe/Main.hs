@@ -23,36 +23,56 @@ import Types
 
 default (Text)
 
-main :: IO ()
 main = runSimpleApp do
+    iperf <- chooseIperf
+    entries <- getEntries
+    rankedEntries <- rankEntries iperf entries
+    displayBestEntry rankedEntries
 
-    -- Obtain the source.
-    source <- liftIO getArgs >>= \x -> case listToMaybe x of
-        Nothing -> throwM . Error $ "Expected one argument."
-        Just y  -> return y
-    raw <- Lazy.readFile source
+sourceUrl :: Text
+sourceUrl = "https://www.vpngate.net/api/iphone/"
 
-    -- Sanitize the source. For some reason, there are these non-standard lines at the beginning
-    -- and the end.
-    let body = Lazy.unlines . filter (not . Lazy.isPrefixOf "*") . Lazy.lines $ raw
+chooseIperf :: RIO env Text
+chooseIperf = _u
 
-    rows <- either (throwM . Error) pure $ decode @Row HasHeader body
-    logWarn $ "Done parsing! Number of entries: " <> display (Vector.length rows)
+getEntries :: RIO env [Entry]
+getEntries = _u
 
-    -- Loop over the configurations, measuring each.
-    measurements <- independent @_ @_ @_ @_ @Vector [Handler \e -> return (e :: SomeException)] (logWarn . displayShow) $ fmap (obtainConf >=> measureOvpn) rows
+rankEntries :: Text -> [Entry] -> RIO env [(Entry, Meta)]
+rankEntries = _u
 
-    logWarn "Maximal speed:"
-    logWarn . display . Text.pack . ppShow . catMaybes . Vector.toList $ measurements
+displayBestEntry :: [(Entry, Meta)] -> RIO env ()
+displayBestEntry = _u
 
-obtainConf :: Row -> RIO env Text
-obtainConf = fmap decodeUtf8Lenient . either (throwM . Error) pure . Base64.decode . openVPN_ConfigData_Base64
+    -- -- Obtain the source.
+    -- source <- liftIO getArgs >>= \x -> case listToMaybe x of
+    --     Nothing -> throwM . Error $ "Expected one argument."
+    --     Just y  -> return y
+    -- raw <- Lazy.readFile source
 
-rowToFileName :: Row -> IO (Path Rel File)
-rowToFileName Row{..} = do
-    hostName' <- parseRelFile (Text.unpack hostName :: String)
-    fileName <- (hostName' <.> "ovpn" :: IO (Path Rel File))
-    return fileName
+    -- -- Sanitize the source. For some reason, there are these non-standard lines at the beginning
+    -- -- and the end.
+    -- let body = Lazy.unlines . filter (not . Lazy.isPrefixOf "*") . Lazy.lines $ raw
+
+    -- rows <- either (throwM . Error) pure $ decode @Row HasHeader body
+    -- logWarn $ "Done parsing! Number of entries: " <> display (Vector.length rows)
+
+    -- -- Loop over the configurations, measuring each.
+    -- measurements <- independent @_ @_ @_ @_ @Vector [Handler \e -> return (e :: SomeException)] (logWarn . displayShow) $ fmap (obtainConf >=> measureOvpn) rows
+
+    -- logWarn "Maximal speed:"
+    -- logWarn . display . Text.pack . ppShow . catMaybes . Vector.toList $ measurements
+
+getConf :: Entry -> RIO env Text
+getConf = fmap decodeUtf8Lenient . either (throwM . EncodingException) pure
+        . Base64.decode . openVPN_ConfigData_Base64
+
+makeConfFileLocation :: HasTmpDir env => Entry -> RIO env (Path Abs File)
+makeConfFileLocation Entry{..} = do
+    hostName' <- (parseRelFile . Text.unpack) hostName
+    fileName <- hostName' <.> "ovpn"
+    location <- _x fileName
+    return location
 
 measureOvpn :: HasLogFunc env => Text -> RIO env (Maybe (Domain, Double))
 measureOvpn conf = withOpenVpn (Conf conf) runIperfs >>= \r -> case r of
