@@ -1,6 +1,7 @@
 module Iperf where
 
 import RIO
+import RIO.Orphans ()
 
 import Data.Aeson (eitherDecode)
 import System.Process.Typed
@@ -13,7 +14,7 @@ import Types
 iperfOptions :: [Text]
 iperfOptions =
     [ "--omit", "1"
-    , "--interval", "10"
+    , "--interval", "3"
     , "--connect-timeout", "1000"
     , "--json"
     ]
@@ -34,14 +35,24 @@ servers =
     , Domain "iperf.he.net"
     ]
 
-runIperf :: Domain -> IO (Either Error TopLevel)
-runIperf target = readProcess iperf >>= \(exitCode, out, err) -> case exitCode of
-            ExitFailure _ -> return (Left . Error $ err)
-            ExitSuccess   -> case eitherDecode out of
-                Right r  -> return (Right r)
-                Left err' -> return (Left . Error $ err')
-    where iperf = proc "iperf3" . fmap Text.unpack $ iperfOptions ++ ["--client", domainText target]
+data SomethingWrong = SomethingWrong Text deriving Show
 
-runIperfs :: IO (Domain, Either Error TopLevel)
-runIperfs = redundant_ (fmap (traverse runIperf . (\x -> (x, x))) servers)
+instance Exception SomethingWrong where displayException (SomethingWrong x) = "something wrong: " <> show x
+
+reportError :: Show a => a -> RIO env b
+reportError = throwM . SomethingWrong . Text.pack . show
+
+runIperf :: HasLogFunc env => Domain -> RIO env TopLevel
+runIperf target = do
+    logWarn $ "Iperf: Target: " <> displayShow target
+
+    readProcess iperf >>= \(exitCode, out, err) -> case exitCode of
+            ExitFailure _ -> reportError err
+            ExitSuccess   -> case eitherDecode out of
+                Right r  -> return r
+                Left err' -> reportError err'
+    where iperf = proc "timeout" . fmap Text.unpack $ ["12", "iperf3"] ++ iperfOptions ++ ["--client", domainText target]
+
+runIperfs :: HasLogFunc env => RIO env (Domain, TopLevel)
+runIperfs = redundant [defaultHandler] (logWarn . displayShow) (fmap (traverse runIperf . (\x -> (x, x))) servers)
     where fixErrors (errs, out) = maybe (Left errs) Right out

@@ -1,6 +1,6 @@
 module Main where
 
-import RIO
+import RIO hiding (Handler)
 import RIO.Orphans ()
 
 import qualified RIO.ByteString.Lazy as Lazy
@@ -12,6 +12,7 @@ import qualified RIO.Text as Text
 import qualified RIO.Vector as Vector
 import Path
 import Text.Show.Pretty
+import Control.Monad.Catch (Handler(..))
 
 import Control.Sequencer
 
@@ -39,7 +40,7 @@ main = runSimpleApp do
     logWarn $ "Done parsing! Number of entries: " <> display (Vector.length rows)
 
     -- Loop over the configurations, measuring each.
-    measurements <- independent_ @_ @_ @Vector $ fmap (obtainConf >=> measureOvpn) rows
+    measurements <- independent @_ @_ @_ @_ @Vector [Handler \e -> return (e :: SomeException)] (logWarn . displayShow) $ fmap (obtainConf >=> measureOvpn) rows
 
     logWarn "Maximal speed:"
     logWarn . display . Text.pack . ppShow . catMaybes . Vector.toList $ measurements
@@ -54,8 +55,6 @@ rowToFileName Row{..} = do
     return fileName
 
 measureOvpn :: HasLogFunc env => Text -> RIO env (Maybe (Domain, Double))
-measureOvpn conf = withOpenVpn (Conf conf) (liftIO runIperfs) >>= \r -> case r of
+measureOvpn conf = withOpenVpn (Conf conf) runIperfs >>= \r -> case r of
     Left e -> (logWarn . display . Text.pack . ppShow) e >> return Nothing
-    Right (domain, r') -> case r' of
-        Left es -> (logWarn . display . Text.pack . ppShow) es >> return Nothing
-        Right result -> return $ Just (domain, getReceivedSpeed result)
+    Right (domain, result) -> (return . Just) (domain, getReceivedSpeed result)

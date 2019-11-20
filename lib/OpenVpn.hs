@@ -27,16 +27,18 @@ newtype Conf = Conf { conf :: Text } deriving (Show, Eq, Ord)
 --     name <- parseAbsFile name'
 --     action name handle
 
-withOpenVpn :: forall m a. (MonadIO m, MonadUnliftIO m, MonadThrow m) => Conf -> m a -> m (Either Error a)
-withOpenVpn Conf{..} io = withSystemTempFile "openvpn.conf" $ \confPath' confHandle -> do
-    confPath <- parseAbsFile confPath'
-    doStuff confPath confHandle
+withOpenVpn :: forall m env a. (MonadIO m, MonadReader env m, HasLogFunc env, MonadUnliftIO m, MonadThrow m)
+            => Conf -> m a -> m (Either Error a)
+withOpenVpn Conf{..} io = do
+    withSystemTempFile "openvpn.conf" $ \confPath' confHandle -> do
+        confPath <- parseAbsFile confPath'
+        hClose confHandle
+        doStuff confPath
 
   where
-    doStuff :: Path Abs File -> Handle -> m (Either Error a)
-    doStuff confPath confHandle = do
+    doStuff :: Path Abs File -> m (Either Error a)
+    doStuff confPath = do
         writeFileUtf8 (fromAbsFile confPath) conf
-        hSeek confHandle AbsoluteSeek 0
         processConfig <- openVpn confPath
         bracket (liftIO $ startProcess processConfig) (liftIO . interruptProcessGroupOf . unsafeProcessHandle) $ \process -> do
             let output = getStdout process
@@ -60,6 +62,7 @@ withOpenVpn Conf{..} io = withSystemTempFile "openvpn.conf" $ \confPath' confHan
 
     analyzeOutputLine h = do
         line <- Text.hGetLine h
+        Text.putStrLn line
         return case parseMaybe connected line of
             Nothing -> Left h
             Just _  -> Right ()
