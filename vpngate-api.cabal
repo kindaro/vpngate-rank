@@ -35,6 +35,7 @@ common commons
                  , random
                  , sequencer
                  , containers
+                 , witherable
     default-language: Haskell2010
     default-extensions: DeriveGeneric
                       , TypeApplications

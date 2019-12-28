@@ -9,6 +9,7 @@ import qualified Data.Map.Strict as Map
 import System.Process.Typed
 import Data.ByteString.UTF8 (toString)
 import RIO.ByteString.Lazy (toStrict)
+import Data.Witherable
 
 import Types
 
@@ -29,7 +30,7 @@ instance Ord a => Diag Map a where
 
     diag = Map.fromList . fmap diag
 
-independent_ :: HasLogFunc env => [RIO env a] -> RIO env [a]
+independent_ :: (Witherable w, HasLogFunc env) => w (RIO env a) -> RIO env (w a)
 independent_ = independent [handleAllSynchronous] (logWarn . displayShow @SomeException)
 
 insistent_ :: HasLogFunc env => Int -> RIO env a -> RIO env a
@@ -47,3 +48,14 @@ getProc prog args = do
         ExitFailure _ -> throwM ((ProcessException . toString . toStrict) stdErr)
 
   where proc' prog' args' = proc (toString prog') (fmap toString args')
+
+-- Grace a Chris Taylor https://stackoverflow.com/a/19724090
+getMaxFromMap :: Ord v => Map k v -> [k]
+getMaxFromMap m = go [] Nothing (Map.toList m)
+  where
+    go ks _        []           = ks 
+    go ks Nothing  ((k,v):rest) = go (k:ks) (Just v) rest
+    go ks (Just u) ((k,v):rest)
+        | v < u     = go ks     (Just u) rest
+        | v > u     = go [k]    (Just v) rest
+        | otherwise = go (k:ks) (Just v) rest
