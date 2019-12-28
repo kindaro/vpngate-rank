@@ -24,11 +24,11 @@ import           Data.Text (Text)
 import qualified GHC.Generics
 
 data ConnectedElt = ConnectedElt { 
-    connectedEltRemotePort :: Int,
-    connectedEltSocket :: Int,
+    connectedEltRemotePort :: Double,
+    connectedEltSocket :: Double,
     connectedEltRemoteHost :: Text,
     connectedEltLocalHost :: Text,
-    connectedEltLocalPort :: Int
+    connectedEltLocalPort :: Double
   } deriving (Show,Eq,GHC.Generics.Generic)
 
 
@@ -44,7 +44,7 @@ instance ToJSON ConnectedElt where
 
 data ConnectingTo = ConnectingTo { 
     connectingToHost :: Text,
-    connectingToPort :: Int
+    connectingToPort :: Double
   } deriving (Show,Eq,GHC.Generics.Generic)
 
 
@@ -60,7 +60,7 @@ instance ToJSON ConnectingTo where
 
 data Timestamp = Timestamp { 
     timestampTime :: Text,
-    timestampTimesecs :: Int
+    timestampTimesecs :: Double
   } deriving (Show,Eq,GHC.Generics.Generic)
 
 
@@ -75,15 +75,15 @@ instance ToJSON Timestamp where
 
 
 data TestStart = TestStart { 
-    testStartBlocks :: Int,
-    testStartTos :: Int,
+    testStartBlocks :: Double,
+    testStartTos :: Double,
     testStartProtocol :: Text,
-    testStartOmit :: Int,
-    testStartBlksize :: Int,
-    testStartReverse :: Int,
-    testStartDuration :: Int,
-    testStartNumStreams :: Int,
-    testStartBytes :: Int
+    testStartOmit :: Double,
+    testStartBlksize :: Double,
+    testStartReverse :: Double,
+    testStartDuration :: Double,
+    testStartNumStreams :: Double,
+    testStartBytes :: Double
   } deriving (Show,Eq,GHC.Generics.Generic)
 
 
@@ -101,14 +101,14 @@ data Start = Start {
     startCookie :: Text,
     startSystemInfo :: Text,
     startConnected :: [ConnectedElt],
-    startSockBufsize :: Int,
+    startSockBufsize :: Double,
     startConnectingTo :: ConnectingTo,
-    startTcpMssDefault :: Int,
-    startRcvbufActual :: Int,
+    startTcpMssDefault :: Double,
+    startRcvbufActual :: Double,
     startVersion :: Text,
     startTimestamp :: Timestamp,
     startTestStart :: TestStart,
-    startSndbufActual :: Int
+    startSndbufActual :: Double
   } deriving (Show,Eq,GHC.Generics.Generic)
 
 
@@ -123,18 +123,18 @@ instance ToJSON Start where
 
 
 data Sender = Sender { 
-    senderMinRtt :: Int,
-    senderSocket :: Int,
-    senderStart :: Int,
+    senderMinRtt :: Double,
+    senderSocket :: Double,
+    senderStart :: Double,
     senderSender :: Bool,
     senderBitsPerSecond :: Double,
-    senderMaxSndCwnd :: Int,
-    senderRetransmits :: Int,
+    senderMaxSndCwnd :: Double,
+    senderRetransmits :: Double,
     senderEnd :: Double,
-    senderMeanRtt :: Int,
+    senderMeanRtt :: Double,
     senderSeconds :: Double,
-    senderMaxRtt :: Int,
-    senderBytes :: Int
+    senderMaxRtt :: Double,
+    senderBytes :: Double
   } deriving (Show,Eq,GHC.Generics.Generic)
 
 
@@ -149,13 +149,13 @@ instance ToJSON Sender where
 
 
 data Receiver = Receiver { 
-    receiverSocket :: Int,
-    receiverStart :: Int,
+    receiverSocket :: Double,
+    receiverStart :: Double,
     receiverSender :: Bool,
     receiverBitsPerSecond :: Double,
     receiverEnd :: Double,
     receiverSeconds :: Double,
-    receiverBytes :: Int
+    receiverBytes :: Double
   } deriving (Show,Eq,GHC.Generics.Generic)
 
 
@@ -170,20 +170,20 @@ instance ToJSON Receiver where
 
 
 data StreamsElt = StreamsElt { 
-    streamsEltPmtu :: (Maybe (Int:|:[(Maybe Value)])),
+    streamsEltPmtu :: (Maybe (Double:|:[(Maybe Value)])),
     streamsEltOmitted :: (Maybe (Bool:|:[(Maybe Value)])),
-    streamsEltSocket :: (Maybe (Int:|:[(Maybe Value)])),
-    streamsEltStart :: (Maybe (Int:|:[(Maybe Value)])),
+    streamsEltSocket :: (Maybe (Double:|:[(Maybe Value)])),
+    streamsEltStart :: (Maybe (Double:|:[(Maybe Value)])),
     streamsEltSender :: Bool:|:Sender:|:[(Maybe Value)],
     streamsEltBitsPerSecond :: (Maybe (Double:|:[(Maybe Value)])),
-    streamsEltRetransmits :: (Maybe (Int:|:[(Maybe Value)])),
+    streamsEltRetransmits :: (Maybe (Double:|:[(Maybe Value)])),
     streamsEltReceiver :: (Maybe (Receiver:|:[(Maybe Value)])),
-    streamsEltRttvar :: (Maybe (Int:|:[(Maybe Value)])),
+    streamsEltRttvar :: (Maybe (Double:|:[(Maybe Value)])),
     streamsEltEnd :: (Maybe (Double:|:[(Maybe Value)])),
-    streamsEltRtt :: (Maybe (Int:|:[(Maybe Value)])),
-    streamsEltSndCwnd :: (Maybe (Int:|:[(Maybe Value)])),
+    streamsEltRtt :: (Maybe (Double:|:[(Maybe Value)])),
+    streamsEltSndCwnd :: (Maybe (Double:|:[(Maybe Value)])),
     streamsEltSeconds :: (Maybe (Double:|:[(Maybe Value)])),
-    streamsEltBytes :: (Maybe (Int:|:[(Maybe Value)]))
+    streamsEltBytes :: (Maybe (Double:|:[(Maybe Value)]))
   } deriving (Show,Eq,GHC.Generics.Generic)
 
 
@@ -199,13 +199,13 @@ instance ToJSON StreamsElt where
 
 data Sum = Sum { 
     sumOmitted :: Bool,
-    sumStart :: Int,
+    sumStart :: Double,
     sumSender :: Bool,
     sumBitsPerSecond :: Double,
-    sumRetransmits :: Int,
+    sumRetransmits :: Double,
     sumEnd :: Double,
     sumSeconds :: Double,
-    sumBytes :: Int
+    sumBytes :: Double
   } deriving (Show,Eq,GHC.Generics.Generic)
 
 
@@ -219,30 +219,30 @@ instance ToJSON Sum where
   toEncoding (Sum {..}) = pairs  ("omitted" .= sumOmitted<>"start" .= sumStart<>"sender" .= sumSender<>"bits_per_second" .= sumBitsPerSecond<>"retransmits" .= sumRetransmits<>"end" .= sumEnd<>"seconds" .= sumSeconds<>"bytes" .= sumBytes)
 
 
-data IntervalsElt = IntervalsElt { 
+data DoubleervalsElt = DoubleervalsElt { 
     intervalsEltStreams :: [StreamsElt],
     intervalsEltSum :: Sum
   } deriving (Show,Eq,GHC.Generics.Generic)
 
 
-instance FromJSON IntervalsElt where
-  parseJSON (Object v) = IntervalsElt <$> v .:  "streams" <*> v .:  "sum"
+instance FromJSON DoubleervalsElt where
+  parseJSON (Object v) = DoubleervalsElt <$> v .:  "streams" <*> v .:  "sum"
   parseJSON _          = mzero
 
 
-instance ToJSON IntervalsElt where
-  toJSON     (IntervalsElt {..}) = object ["streams" .= intervalsEltStreams, "sum" .= intervalsEltSum]
-  toEncoding (IntervalsElt {..}) = pairs  ("streams" .= intervalsEltStreams<>"sum" .= intervalsEltSum)
+instance ToJSON DoubleervalsElt where
+  toJSON     (DoubleervalsElt {..}) = object ["streams" .= intervalsEltStreams, "sum" .= intervalsEltSum]
+  toEncoding (DoubleervalsElt {..}) = pairs  ("streams" .= intervalsEltStreams<>"sum" .= intervalsEltSum)
 
 
 data SumSent = SumSent { 
-    sumSentStart :: Int,
+    sumSentStart :: Double,
     sumSentSender :: Bool,
     sumSentBitsPerSecond :: Double,
-    sumSentRetransmits :: Int,
+    sumSentRetransmits :: Double,
     sumSentEnd :: Double,
     sumSentSeconds :: Double,
-    sumSentBytes :: Int
+    sumSentBytes :: Double
   } deriving (Show,Eq,GHC.Generics.Generic)
 
 
@@ -277,12 +277,12 @@ instance ToJSON CpuUtilizationPercent where
 
 
 data SumReceived = SumReceived { 
-    sumReceivedStart :: Int,
+    sumReceivedStart :: Double,
     sumReceivedSender :: Bool,
     sumReceivedBitsPerSecond :: Double,
     sumReceivedEnd :: Double,
     sumReceivedSeconds :: Double,
-    sumReceivedBytes :: Int
+    sumReceivedBytes :: Double
   } deriving (Show,Eq,GHC.Generics.Generic)
 
 
@@ -317,7 +317,7 @@ instance ToJSON End where
 
 data TopLevel = TopLevel { 
     topLevelStart :: Start,
-    topLevelIntervals :: [IntervalsElt],
+    topLevelDoubleervals :: [DoubleervalsElt],
     topLevelEnd :: End
   } deriving (Show,Eq,GHC.Generics.Generic)
 
@@ -328,8 +328,8 @@ instance FromJSON TopLevel where
 
 
 instance ToJSON TopLevel where
-  toJSON     (TopLevel {..}) = object ["start" .= topLevelStart, "intervals" .= topLevelIntervals, "end" .= topLevelEnd]
-  toEncoding (TopLevel {..}) = pairs  ("start" .= topLevelStart<>"intervals" .= topLevelIntervals<>"end" .= topLevelEnd)
+  toJSON     (TopLevel {..}) = object ["start" .= topLevelStart, "intervals" .= topLevelDoubleervals, "end" .= topLevelEnd]
+  toEncoding (TopLevel {..}) = pairs  ("start" .= topLevelStart<>"intervals" .= topLevelDoubleervals<>"end" .= topLevelEnd)
 
 
 
