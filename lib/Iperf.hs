@@ -2,14 +2,12 @@ module Iperf where
 
 import RIO
 import RIO.Orphans ()
-
 import Data.Aeson (eitherDecodeStrict)
+import Data.Map.Strict ((!))
 
 import JsonIperf
 import Types
 import Utils
-
-import RIO.ByteString
 
 options :: [ByteString]
 options =
@@ -23,9 +21,10 @@ servers :: [Url]
 servers =
     [ "bouygues.iperf.fr"
     , "iperf.he.net"
+    , "speedtest.wtnet.de"
     ]
 
-choose :: HasLogFunc env => RIO env Url
+choose :: HasLogFunc env => RIO env (Url, Double)
 choose = do
     outputs <- (independent_ . fmap (insistent_ 3 . iperf) . diag @Map) servers
     measurements <- independent_ (fmap decode outputs)
@@ -33,7 +32,7 @@ choose = do
         speeds = fmap speed measurements
     case getMaxFromMap speeds of
         [ ]    -> fail "Unable to measure speeds."
-        (x: _) -> return x
+        (x: _) -> return (x, speeds ! x)
 
 decode :: ByteString -> RIO env TopLevel
 decode x = case eitherDecodeStrict x of
@@ -41,20 +40,7 @@ decode x = case eitherDecodeStrict x of
     Right y -> return y
 
 speed :: TopLevel -> Double
-speed x = (sumSentBitsPerSecond . endSumSent . topLevelEnd) x
-        + (sumReceivedBitsPerSecond . endSumReceived . topLevelEnd) x
+speed x = (sumReceivedBitsPerSecond . endSumReceived . topLevelEnd) x
 
 iperf :: HasLogFunc env => Url -> RIO env ByteString
 iperf x = getProc "iperf3" (options ++ ["--client", x])
-
--- runIperf :: HasLogFunc env => Domain -> RIO env TopLevel
---     readProcess iperf >>= \(exitCode, out, err) -> case exitCode of
---             ExitFailure _ -> reportError err
---             ExitSuccess   -> case eitherDecode out of
---                 Right r  -> return r
---                 Left err' -> reportError err'
---     where iperf = proc "timeout" . fmap Text.unpack $ ["12", "iperf3"] ++ options ++ ["--client", domainText target]
-
--- runIperfs :: HasLogFunc env => RIO env (Domain, TopLevel)
--- runIperfs = redundant [defaultHandler] (logWarn . displayShow) (fmap (traverse runIperf . (\x -> (x, x))) servers)
---     where fixErrors (errs, out) = maybe (Left errs) Right out
