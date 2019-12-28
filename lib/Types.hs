@@ -4,7 +4,7 @@ import RIO
 
 import Data.Text (Text)
 
-type Url = Text
+type Url = ByteString
 
 data Meta
 
@@ -14,3 +14,8 @@ data EncodingException = EncodingException String deriving Show
 
 instance Exception EncodingException where
     displayException (EncodingException s) = s
+
+data ProcessException = ProcessException String deriving Show
+
+instance Exception ProcessException where
+    displayException (ProcessException s) = s

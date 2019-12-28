@@ -10,6 +10,8 @@ import System.Process.Typed
 import Data.ByteString.UTF8 (toString)
 import RIO.ByteString.Lazy (toStrict)
 
+import Types
+
 import Control.Sequencer
 
 class Diag (c :: * -> * -> *) a where
@@ -31,14 +33,17 @@ independent_ :: HasLogFunc env => [RIO env a] -> RIO env [a]
 independent_ = independent [handleAllSynchronous] (logWarn . displayShow @SomeException)
 
 insistent_ :: HasLogFunc env => Int -> RIO env a -> RIO env a
-insistent_ = insistent [] (logWarn . displayShow @SomeException)
+insistent_ = insistent [handleAllSynchronous] (logWarn . displayShow @SomeException)
 
 -- | Run a process. If successful, return StdOut. If non-zero exit code, throw StdErr.
-getProc :: ByteString -> [ByteString] -> RIO env ByteString
+getProc :: HasLogFunc env => ByteString -> [ByteString] -> RIO env ByteString
 getProc prog args = do
+    logInfo $ "Running external program: "
+            <> displayShow prog
+            <> (mconcat . fmap ((" " <>) . displayShow)) args
     (exitCode, stdOut, stdErr) <- readProcess (proc' prog args)
     case exitCode of
-        ExitSuccess -> return (toStrict stdOut)
-        ExitFailure _ -> fail (show stdErr)
+        ExitSuccess   -> return (toStrict stdOut)
+        ExitFailure _ -> throwM ((ProcessException . toString . toStrict) stdErr)
 
   where proc' prog' args' = proc (toString prog') (fmap toString args')

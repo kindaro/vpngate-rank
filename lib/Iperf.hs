@@ -12,7 +12,7 @@ import JsonIperf
 import Types
 import Utils
 
-iperfOptions :: [Text]
+iperfOptions :: [ByteString]
 iperfOptions =
     [ "--omit", "1"
     , "--interval", "3"
@@ -23,29 +23,19 @@ iperfOptions =
 servers :: [Url]
 servers =
     [ "bouygues.iperf.fr"
-    , "ping.online.net"
-    , "ping6.online.net"
-    , "ping-90ms.online.net"
-    , "ping6-90ms.online.net"
-    , "speedtest.serverius.net"
-    , "iperf.eenet.ee"
-    , "iperf.volia.net"
-    , "iperf.it-north.net"
-    , "iperf.biznetnetworks.com"
-    , "iperf.scottlinux.com"
     , "iperf.he.net"
     ]
 
-chooseIperf :: HasLogFunc env => RIO env Url
-chooseIperf = do
-    measurements <-
-        let iperfs :: HasLogFunc env => Map Url (RIO env TopLevel)
-            iperfs = (fmap makeIperfProcess . makeDiagMap) servers
-        in independent _handlers _logger iperfs
-    return _u
+-- chooseIperf :: HasLogFunc env => RIO env Url
+-- chooseIperf = do
+--     measurements <-
+--         let iperfs :: HasLogFunc env => Map Url (RIO env TopLevel)
+--             iperfs = (fmap makeIperfProcess . makeDiagMap) servers
+--         in independent _handlers _logger iperfs
+--     return _u
 
-makeIperfProcess :: HasLogFunc env => Url -> RIO env TopLevel
-makeIperfProcess = (insistent _handlers _logger 3 . makeIperfProcess)
+iperf :: HasLogFunc env => Url -> RIO env ByteString
+iperf x = getProc "iperf3" (iperfOptions ++ ["--client", x])
 
 -- runIperf :: HasLogFunc env => Domain -> RIO env TopLevel
 --     readProcess iperf >>= \(exitCode, out, err) -> case exitCode of
