@@ -27,45 +27,45 @@ newtype Conf = Conf { conf :: Text } deriving (Show, Eq, Ord)
 --     name <- parseAbsFile name'
 --     action name handle
 
-withOpenVpn :: forall m env a. (MonadIO m, MonadReader env m, HasLogFunc env, MonadUnliftIO m, MonadThrow m)
-            => Conf -> m a -> m (Either Error a)
-withOpenVpn Conf{..} io = do
-    withSystemTempFile "openvpn.conf" $ \confPath' confHandle -> do
-        confPath <- parseAbsFile confPath'
-        hClose confHandle
-        doStuff confPath
-
-  where
-    doStuff :: Path Abs File -> m (Either Error a)
-    doStuff confPath = do
-        writeFileUtf8 (fromAbsFile confPath) conf
-        processConfig <- openVpn confPath
-        bracket (liftIO $ startProcess processConfig) (liftIO . interruptProcessGroupOf . unsafeProcessHandle) $ \process -> do
-            let output = getStdout process
-            hSetBuffering output LineBuffering  -- By now, the connection is established.
-            liftIO $ loopM analyzeOutputLine output
-            ioResult <- io
-              -- If there is anything else in the handle, it means connection was shaky and some events
-              -- were logged.
-            isShaky <- liftIO $ hReady output `catchIOError` \e -> if isEOFError e then return True else ioError e
-            result <- if isShaky
-                            then return $ Left . Error $ "VPN failure."
-                            else return $ Right ioResult
-            return result
-
-    openVpn confPath = do
-        let confPathUntyped = fromAbsFile confPath
-        user  <- fmap (filter isAlphaNum . toString) $ readProcessStdout_ "id --user  --name"
-        group <- fmap (filter isAlphaNum . toString) $ readProcessStdout_ "id --group --name"
-        return $ setStdout createPipe
-            $ proc "sudo" ["openvpn", "--user", user, "--group", group, "--config", confPathUntyped]
-
-    analyzeOutputLine h = do
-        line <- Text.hGetLine h
-        Text.putStrLn line
-        return case parseMaybe connected line of
-            Nothing -> Left h
-            Just _  -> Right ()
-
-    connected :: Parsec Void Text String
-    connected = manyTill anySingle (string "Initialization Sequence Completed")
+-- withOpenVpn :: forall m env a. (MonadIO m, MonadReader env m, HasLogFunc env, MonadUnliftIO m, MonadThrow m)
+--             => Conf -> m a -> m (Either Error a)
+-- withOpenVpn Conf{..} io = do
+--     withSystemTempFile "openvpn.conf" $ \confPath' confHandle -> do
+--         confPath <- parseAbsFile confPath'
+--         hClose confHandle
+--         doStuff confPath
+-- 
+--   where
+--     doStuff :: Path Abs File -> m (Either Error a)
+--     doStuff confPath = do
+--         writeFileUtf8 (fromAbsFile confPath) conf
+--         processConfig <- openVpn confPath
+--         bracket (liftIO $ startProcess processConfig) (liftIO . interruptProcessGroupOf . unsafeProcessHandle) $ \process -> do
+--             let output = getStdout process
+--             hSetBuffering output LineBuffering  -- By now, the connection is established.
+--             liftIO $ loopM analyzeOutputLine output
+--             ioResult <- io
+--               -- If there is anything else in the handle, it means connection was shaky and some events
+--               -- were logged.
+--             isShaky <- liftIO $ hReady output `catchIOError` \e -> if isEOFError e then return True else ioError e
+--             result <- if isShaky
+--                             then return $ Left . Error $ "VPN failure."
+--                             else return $ Right ioResult
+--             return result
+-- 
+--     openVpn confPath = do
+--         let confPathUntyped = fromAbsFile confPath
+--         user  <- fmap (filter isAlphaNum . toString) $ readProcessStdout_ "id --user  --name"
+--         group <- fmap (filter isAlphaNum . toString) $ readProcessStdout_ "id --group --name"
+--         return $ setStdout createPipe
+--             $ proc "sudo" ["openvpn", "--user", user, "--group", group, "--config", confPathUntyped]
+-- 
+--     analyzeOutputLine h = do
+--         line <- Text.hGetLine h
+--         Text.putStrLn line
+--         return case parseMaybe connected line of
+--             Nothing -> Left h
+--             Just _  -> Right ()
+-- 
+--     connected :: Parsec Void Text String
+--     connected = manyTill anySingle (string "Initialization Sequence Completed")

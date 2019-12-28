@@ -29,11 +29,8 @@ main = runSimpleApp do
     rankedEntries <- rankEntries iperf entries
     displayBestEntry rankedEntries
 
-sourceUrl :: Text
+sourceUrl :: Url
 sourceUrl = "https://www.vpngate.net/api/iphone/"
-
-chooseIperf :: RIO env Text
-chooseIperf = _u
 
 getEntries :: RIO env [Entry]
 getEntries = _u
@@ -74,7 +71,7 @@ makeConfFileLocation Entry{..} = do
     location <- _x fileName
     return location
 
-measureOvpn :: HasLogFunc env => Text -> RIO env (Maybe (Domain, Double))
-measureOvpn conf = withOpenVpn (Conf conf) runIperfs >>= \r -> case r of
-    Left e -> (logWarn . display . Text.pack . ppShow) e >> return Nothing
-    Right (domain, result) -> (return . Just) (domain, getReceivedSpeed result)
+-- measureOvpn :: HasLogFunc env => Text -> RIO env (Maybe (Domain, Double))
+-- measureOvpn conf = withOpenVpn (Conf conf) runIperfs >>= \r -> case r of
+--     Left e -> (logWarn . display . Text.pack . ppShow) e >> return Nothing
+--     Right (domain, result) -> (return . Just) (domain, getReceivedSpeed result)

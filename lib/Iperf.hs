@@ -10,6 +10,7 @@ import Control.Sequencer
 
 import JsonIperf
 import Types
+import Utils
 
 iperfOptions :: [Text]
 iperfOptions =
@@ -19,40 +20,41 @@ iperfOptions =
     , "--json"
     ]
 
-servers :: [Domain]
+servers :: [Url]
 servers =
-    [ Domain "bouygues.iperf.fr"
-    , Domain "ping.online.net"
-    , Domain "ping6.online.net"
-    , Domain "ping-90ms.online.net"
-    , Domain "ping6-90ms.online.net"
-    , Domain "speedtest.serverius.net"
-    , Domain "iperf.eenet.ee"
-    , Domain "iperf.volia.net"
-    , Domain "iperf.it-north.net"
-    , Domain "iperf.biznetnetworks.com"
-    , Domain "iperf.scottlinux.com"
-    , Domain "iperf.he.net"
+    [ "bouygues.iperf.fr"
+    , "ping.online.net"
+    , "ping6.online.net"
+    , "ping-90ms.online.net"
+    , "ping6-90ms.online.net"
+    , "speedtest.serverius.net"
+    , "iperf.eenet.ee"
+    , "iperf.volia.net"
+    , "iperf.it-north.net"
+    , "iperf.biznetnetworks.com"
+    , "iperf.scottlinux.com"
+    , "iperf.he.net"
     ]
 
-data SomethingWrong = SomethingWrong Text deriving Show
+chooseIperf :: HasLogFunc env => RIO env Url
+chooseIperf = do
+    measurements <-
+        let iperfs :: HasLogFunc env => Map Url (RIO env TopLevel)
+            iperfs = (fmap makeIperfProcess . makeDiagMap) servers
+        in independent _handlers _logger iperfs
+    return _u
 
-instance Exception SomethingWrong where displayException (SomethingWrong x) = "something wrong: " <> show x
+makeIperfProcess :: HasLogFunc env => Url -> RIO env TopLevel
+makeIperfProcess = (insistent _handlers _logger 3 . makeIperfProcess)
 
-reportError :: Show a => a -> RIO env b
-reportError = throwM . SomethingWrong . Text.pack . show
+-- runIperf :: HasLogFunc env => Domain -> RIO env TopLevel
+--     readProcess iperf >>= \(exitCode, out, err) -> case exitCode of
+--             ExitFailure _ -> reportError err
+--             ExitSuccess   -> case eitherDecode out of
+--                 Right r  -> return r
+--                 Left err' -> reportError err'
+--     where iperf = proc "timeout" . fmap Text.unpack $ ["12", "iperf3"] ++ iperfOptions ++ ["--client", domainText target]
 
-runIperf :: HasLogFunc env => Domain -> RIO env TopLevel
-runIperf target = do
-    logWarn $ "Iperf: Target: " <> displayShow target
-
-    readProcess iperf >>= \(exitCode, out, err) -> case exitCode of
-            ExitFailure _ -> reportError err
-            ExitSuccess   -> case eitherDecode out of
-                Right r  -> return r
-                Left err' -> reportError err'
-    where iperf = proc "timeout" . fmap Text.unpack $ ["12", "iperf3"] ++ iperfOptions ++ ["--client", domainText target]
-
-runIperfs :: HasLogFunc env => RIO env (Domain, TopLevel)
-runIperfs = redundant [defaultHandler] (logWarn . displayShow) (fmap (traverse runIperf . (\x -> (x, x))) servers)
-    where fixErrors (errs, out) = maybe (Left errs) Right out
+-- runIperfs :: HasLogFunc env => RIO env (Domain, TopLevel)
+-- runIperfs = redundant [defaultHandler] (logWarn . displayShow) (fmap (traverse runIperf . (\x -> (x, x))) servers)
+--     where fixErrors (errs, out) = maybe (Left errs) Right out
