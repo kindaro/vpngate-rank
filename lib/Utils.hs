@@ -10,6 +10,8 @@ import System.Process.Typed
 import Data.ByteString.UTF8 (toString)
 import RIO.ByteString.Lazy (toStrict)
 import Data.Witherable
+import Text.Printf
+import RIO.Text (pack)
 
 import Types
 
@@ -59,3 +61,8 @@ getMaxFromMap m = go [] Nothing (Map.toList m)
         | v < u     = go ks     (Just u) rest
         | v > u     = go [k]    (Just v) rest
         | otherwise = go (k:ks) (Just v) rest
+
+-- | Display bits per second value as megabytes per second, with up to 2 decimal digits of
+-- precision.
+showAsMbps :: Double -> Text
+showAsMbps = pack . printf "%.2fMBps" . (/ 2^23)

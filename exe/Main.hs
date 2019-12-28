@@ -18,16 +18,18 @@ import Control.Sequencer
 
 import VpnGate
 import OpenVpn
-import Iperf
+import qualified Iperf
 import Types
+import Utils
 
 default (Text)
 
 main = runSimpleApp do
-    iperf <- chooseIperf
-    entries <- getEntries
-    rankedEntries <- rankEntries iperf entries
-    displayBestEntry rankedEntries
+    (iperf, maxSpeed) <- Iperf.choose
+    -- entries <- getEntries
+    -- rankedEntries <- rankEntries iperf entries
+    -- displayBestEntry rankedEntries
+    logOther "Output" ("Fastest iperf: " <> displayShow iperf <> " at " <> (display . showAsMbps) maxSpeed)
 
 sourceUrl :: Url
 sourceUrl = "https://www.vpngate.net/api/iphone/"
