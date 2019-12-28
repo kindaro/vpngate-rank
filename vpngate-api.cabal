@@ -49,6 +49,7 @@ common commons
                       , FlexibleInstances
                       , ScopedTypeVariables
                       , FlexibleContexts
+                      , PartialTypeSignatures
     ghc-options:
         -Wall
         -Wcompat

@@ -33,10 +33,16 @@ instance Ord a => Diag Map a where
     diag = Map.fromList . fmap diag
 
 independent_ :: (Witherable w, HasLogFunc env) => w (RIO env a) -> RIO env (w a)
-independent_ = independent [handleAllSynchronous] (logWarn . displayShow @SomeException)
+independent_ = independent [handleAllSynchronous] log
+  where
+    log :: SomeException -> RIO _ ()
+    log x = logWarn ("Independent branch exception: " <> display x)
 
 insistent_ :: HasLogFunc env => Int -> RIO env a -> RIO env a
-insistent_ = insistent [handleAllSynchronous] (logWarn . displayShow @SomeException)
+insistent_ = insistent [handleAllSynchronous] log
+  where
+    log :: SomeException -> RIO _ ()
+    log x = logWarn ("Redundant branch exception: " <> display x)
 
 -- | Run a process. If successful, return StdOut. If non-zero exit code, throw StdErr.
 getProc :: HasLogFunc env => ByteString -> [ByteString] -> RIO env ByteString

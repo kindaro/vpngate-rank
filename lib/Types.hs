@@ -18,4 +18,4 @@ instance Exception EncodingException where
 data ProcessException = ProcessException String deriving Show
 
 instance Exception ProcessException where
-    displayException (ProcessException s) = s
+    displayException (ProcessException s) = "Process exited with error. StdErr: \n" ++ s
