@@ -44,6 +44,12 @@ insistent_ = insistent [handleAllSynchronous] log
     log :: SomeException -> RIO _ ()
     log x = logWarn ("Redundant branch exception: " <> display x)
 
+cool_ :: HasLogFunc env => Int -> Int -> RIO env a -> RIO env a
+cool_ = cool [handleAllSynchronous] log
+  where
+    log :: SomeException -> RIO _ ()
+    log x = logWarn ("Cool branch exception: " <> display x)
+
 -- | Run a process. If successful, return StdOut. If non-zero exit code, throw StdErr.
 getProc :: HasLogFunc env => ByteString -> [ByteString] -> RIO env ByteString
 getProc prog args = do

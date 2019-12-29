@@ -16,7 +16,7 @@ import Control.Monad.Catch (Handler(..))
 
 import Control.Sequencer
 
-import VpnGate
+import qualified VpnGate
 import OpenVpn
 import qualified Iperf
 import Types
@@ -24,23 +24,23 @@ import Utils
 
 default (Text)
 
-main = runSimpleApp do
+main = runApp do
     (iperf, maxSpeed) <- Iperf.choose
     -- entries <- getEntries
     -- rankedEntries <- rankEntries iperf entries
     -- displayBestEntry rankedEntries
-    logOther "Output" ("Fastest iperf: " <> displayShow iperf <> " at " <> (display . showAsMbps) maxSpeed)
+    message $ "Fastest iperf: " <> tshow iperf <> " at " <> showAsMbps maxSpeed
 
 sourceUrl :: Url
 sourceUrl = "https://www.vpngate.net/api/iphone/"
 
-getEntries :: RIO env [Entry]
+getEntries :: RIO env [VpnGate.Entry]
 getEntries = _u
 
-rankEntries :: Text -> [Entry] -> RIO env [(Entry, Meta)]
+rankEntries :: Text -> [VpnGate.Entry] -> RIO env [(VpnGate.Entry, Meta)]
 rankEntries = _u
 
-displayBestEntry :: [(Entry, Meta)] -> RIO env ()
+displayBestEntry :: [(VpnGate.Entry, Meta)] -> RIO env ()
 displayBestEntry = _u
 
     -- -- Obtain the source.
@@ -62,12 +62,12 @@ displayBestEntry = _u
     -- logWarn "Maximal speed:"
     -- logWarn . display . Text.pack . ppShow . catMaybes . Vector.toList $ measurements
 
-getConf :: Entry -> RIO env Text
+getConf :: VpnGate.Entry -> RIO env Text
 getConf = fmap decodeUtf8Lenient . either (throwM . EncodingException) pure
-        . Base64.decode . openVPN_ConfigData_Base64
+        . Base64.decode . VpnGate.openVPN_ConfigData_Base64
 
-makeConfFileLocation :: HasTmpDir env => Entry -> RIO env (Path Abs File)
-makeConfFileLocation Entry{..} = do
+makeConfFileLocation :: HasTmpDir env => VpnGate.Entry -> RIO env (Path Abs File)
+makeConfFileLocation VpnGate.Entry{..} = do
     hostName' <- (parseRelFile . Text.unpack) hostName
     fileName <- hostName' <.> "ovpn"
     location <- _x fileName

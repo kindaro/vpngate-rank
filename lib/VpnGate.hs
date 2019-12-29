@@ -28,7 +28,3 @@ data Entry = Entry
 
 instance FromRecord Entry
 instance ToRecord Entry
-
-getSentSpeed, getReceivedSpeed :: TopLevel -> Double
-getSentSpeed     = sumSentBitsPerSecond     . endSumSent     . topLevelEnd
-getReceivedSpeed = sumReceivedBitsPerSecond . endSumReceived . topLevelEnd
