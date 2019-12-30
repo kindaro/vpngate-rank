@@ -5,6 +5,8 @@ import RIO.Orphans ()
 
 import qualified RIO.ByteString.Lazy as Lazy
 import qualified Data.ByteString.Lazy.Char8 as Lazy (lines, unlines)
+import qualified Data.ByteString as Strict (isPrefixOf)
+import qualified Data.ByteString.Char8 as Strict (lines, unlines)
 import qualified Data.ByteString.Base64 as Base64
 import System.Environment (getArgs)
 import Data.Csv
@@ -26,16 +28,25 @@ default (Text)
 
 main = runApp do
     (iperf, maxSpeed) <- Iperf.choose
-    -- entries <- getEntries
+    entries <- getEntries
     -- rankedEntries <- rankEntries iperf entries
     -- displayBestEntry rankedEntries
-    message $ "Fastest iperf: " <> tshow iperf <> " at " <> showAsMbps maxSpeed
+    message $ (tshow . take 1 . reverse) entries
 
 sourceUrl :: Url
 sourceUrl = "https://www.vpngate.net/api/iphone/"
 
-getEntries :: RIO env [VpnGate.Entry]
-getEntries = _u
+getEntries :: HasLogFunc env => RIO env [VpnGate.Entry]
+getEntries = do
+    raw <- getProc "curl" [sourceUrl]
+    (parse . clean) raw
+
+  where
+    clean :: Lazy.ByteString -> Lazy.ByteString
+    clean = Lazy.unlines . filter (not . Lazy.isPrefixOf "*") . Lazy.lines
+
+    parse :: Lazy.ByteString -> RIO env [VpnGate.Entry]
+    parse = either (throwM . EncodingException) (pure . toList) . decode @VpnGate.Entry HasHeader
 
 rankEntries :: Text -> [VpnGate.Entry] -> RIO env [(VpnGate.Entry, Meta)]
 rankEntries = _u

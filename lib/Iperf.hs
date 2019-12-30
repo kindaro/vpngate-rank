@@ -2,7 +2,8 @@ module Iperf where
 
 import RIO
 import RIO.Orphans ()
-import Data.Aeson (eitherDecodeStrict)
+import qualified RIO.ByteString.Lazy as Lazy
+import Data.Aeson (eitherDecode)
 import Data.Map.Strict ((!))
 
 import JsonIperf
@@ -37,15 +38,15 @@ choose = do
   where
     delay = 10 ^ (6 :: Int)
 
-decode :: ByteString -> RIO env TopLevel
-decode x = case eitherDecodeStrict x of
+decode :: Lazy.ByteString -> RIO env TopLevel
+decode x = case eitherDecode x of
     Left e  -> throwM (EncodingException e)
     Right y -> return y
 
 speed :: TopLevel -> Double
 speed x = getReceivedSpeed x
 
-iperf :: HasLogFunc env => Url -> RIO env ByteString
+iperf :: HasLogFunc env => Url -> RIO env Lazy.ByteString
 iperf x = getProc "iperf3" (options ++ ["--client", x])
 
 getSentSpeed, getReceivedSpeed :: TopLevel -> Double

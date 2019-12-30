@@ -7,8 +7,10 @@ import RIO.Orphans ()
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import System.Process.Typed
-import Data.ByteString.UTF8 (toString)
-import RIO.ByteString.Lazy (toStrict)
+import qualified Data.ByteString.UTF8 as Strict (toString)
+import qualified RIO.ByteString as Strict
+import qualified Data.ByteString.Lazy.UTF8 as Lazy (toString)
+import qualified RIO.ByteString.Lazy as Lazy
 import Data.Witherable
 import Text.Printf
 import RIO.Text (pack)
@@ -50,18 +52,18 @@ cool_ = cool [handleAllSynchronous] log
     log :: SomeException -> RIO _ ()
     log x = logWarn ("Cool branch exception: " <> display x)
 
--- | Run a process. If successful, return StdOut. If non-zero exit code, throw StdErr.
-getProc :: HasLogFunc env => ByteString -> [ByteString] -> RIO env ByteString
+-- | Run a process. If successful, then return StdOut, else (if non-zero exit code), throw StdErr.
+getProc :: HasLogFunc env => ByteString -> [ByteString] -> RIO env Lazy.ByteString
 getProc prog args = do
     logInfo $ "Running external program: "
             <> displayShow prog
             <> (mconcat . fmap ((" " <>) . displayShow)) args
     (exitCode, stdOut, stdErr) <- readProcess (proc' prog args)
     case exitCode of
-        ExitSuccess   -> return (toStrict stdOut)
-        ExitFailure _ -> throwM ((ProcessException . toString . toStrict) stdErr)
+        ExitSuccess   -> return stdOut
+        ExitFailure _ -> throwM ((ProcessException . Lazy.toString) stdErr)
 
-  where proc' prog' args' = proc (toString prog') (fmap toString args')
+  where proc' prog' args' = proc (Strict.toString prog') (fmap Strict.toString args')
 
 -- Grace a Chris Taylor https://stackoverflow.com/a/19724090
 getMaxFromMap :: Ord v => Map k v -> [k]
