@@ -2,12 +2,12 @@ module Main where
 
 import RIO hiding (Handler)
 import RIO.Orphans ()
+import RIO.Process
 
 import qualified RIO.ByteString.Lazy as Lazy
 import qualified Data.ByteString.Lazy.Char8 as Lazy (lines, unlines)
 import qualified Data.ByteString as Strict (isPrefixOf)
 import qualified Data.ByteString.Char8 as Strict (lines, unlines)
-import qualified Data.ByteString.Base64 as Base64
 import System.Environment (getArgs)
 import Data.Csv
 import qualified RIO.Text as Text
@@ -15,43 +15,47 @@ import qualified RIO.Vector as Vector
 import Path
 import Text.Show.Pretty
 import Control.Monad.Catch (Handler(..))
+import Data.String.Conv
 
 import Control.Sequencer
 
-import qualified VpnGate
+import VpnGate
 import OpenVpn
 import qualified Iperf
 import Types
 import Utils
+import Constants
+import App
 
 default (Text)
 
+main :: IO ()
 main = runApp do
-    (iperf, maxSpeed) <- Iperf.choose
-    entries <- getEntries
+    checkRootOrExit
+    -- (iperf, maxSpeed) <- Iperf.choose
+    -- entries <- getEntries
     -- rankedEntries <- rankEntries iperf entries
     -- displayBestEntry rankedEntries
-    message $ (tshow . take 1 . reverse) entries
+    -- let Just entry = listToMaybe entries
+    conf <- readFileUtf8 "/tmp/x/vpngate-api-7bc672c815a911b9/openvpn551307-0.ovpn"
+    withOpenVpn conf (runProcess_ "tcptraceroute -w 1 -n g.co 443")
 
-sourceUrl :: Url
-sourceUrl = "https://www.vpngate.net/api/iphone/"
-
-getEntries :: HasLogFunc env => RIO env [VpnGate.Entry]
+getEntries :: (HasProcessContext env, HasLogFunc env) => RIO env [Entry]
 getEntries = do
-    raw <- getProc "curl" [sourceUrl]
+    raw <- getProc "curl" ["--verbose", sourceUrl]
     (parse . clean) raw
 
   where
     clean :: Lazy.ByteString -> Lazy.ByteString
     clean = Lazy.unlines . filter (not . Lazy.isPrefixOf "*") . Lazy.lines
 
-    parse :: Lazy.ByteString -> RIO env [VpnGate.Entry]
-    parse = either (throwM . EncodingException) (pure . toList) . decode @VpnGate.Entry HasHeader
+    parse :: Lazy.ByteString -> RIO env [Entry]
+    parse = either (throwM . EncodingException) (pure . toList) . decode @Entry HasHeader
 
-rankEntries :: Text -> [VpnGate.Entry] -> RIO env [(VpnGate.Entry, Meta)]
+rankEntries :: Text -> [Entry] -> RIO env [(Entry, Meta)]
 rankEntries = _u
 
-displayBestEntry :: [(VpnGate.Entry, Meta)] -> RIO env ()
+displayBestEntry :: [(Entry, Meta)] -> RIO env ()
 displayBestEntry = _u
 
     -- -- Obtain the source.
@@ -73,12 +77,8 @@ displayBestEntry = _u
     -- logWarn "Maximal speed:"
     -- logWarn . display . Text.pack . ppShow . catMaybes . Vector.toList $ measurements
 
-getConf :: VpnGate.Entry -> RIO env Text
-getConf = fmap decodeUtf8Lenient . either (throwM . EncodingException) pure
-        . Base64.decode . VpnGate.openVPN_ConfigData_Base64
-
-makeConfFileLocation :: HasTmpDir env => VpnGate.Entry -> RIO env (Path Abs File)
-makeConfFileLocation VpnGate.Entry{..} = do
+makeConfFileLocation :: HasTmpDir env => Entry -> RIO env (Path Abs File)
+makeConfFileLocation Entry{..} = do
     hostName' <- (parseRelFile . Text.unpack) hostName
     fileName <- hostName' <.> "ovpn"
     location <- _x fileName

@@ -17,7 +17,6 @@ common commons
                  , vector
                  , from-sum
                  , ip
-                 , typed-process
                  , aeson
                  , json-alt
                  , transformers
@@ -36,6 +35,7 @@ common commons
                  , sequencer
                  , containers
                  , witherable
+                 , string-conv
     default-language: Haskell2010
     default-extensions: DeriveGeneric
                       , TypeApplications
@@ -70,6 +70,8 @@ library
                    , OpenVpn
                    , Types
                    , Utils
+                   , Constants
+                   , App
     hs-source-dirs: lib
 
 executable vpngate-api

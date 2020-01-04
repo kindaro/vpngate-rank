@@ -3,17 +3,17 @@
 module Utils where
 
 import RIO
+import RIO.Process
 import RIO.Orphans ()
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import System.Process.Typed
-import qualified Data.ByteString.UTF8 as Strict (toString)
 import qualified RIO.ByteString as Strict
-import qualified Data.ByteString.Lazy.UTF8 as Lazy (toString)
 import qualified RIO.ByteString.Lazy as Lazy
 import Data.Witherable
 import Text.Printf
 import RIO.Text (pack)
+import qualified RIO.Map as Map
+import Data.String.Conv
 
 import Types
 
@@ -52,18 +52,22 @@ cool_ = cool [handleAllSynchronous] log
     log :: SomeException -> RIO _ ()
     log x = logWarn ("Cool branch exception: " <> display x)
 
--- | Run a process. If successful, then return StdOut, else (if non-zero exit code), throw StdErr.
-getProc :: HasLogFunc env => ByteString -> [ByteString] -> RIO env Lazy.ByteString
+-- | Run a process, with lowered privileges if possible, return standard output.
+getProc :: (HasProcessContext env, HasLogFunc env)
+        => String -> [String] -> RIO env Lazy.ByteString
 getProc prog args = do
     logInfo $ "Running external program: "
             <> displayShow prog
             <> (mconcat . fmap ((" " <>) . displayShow)) args
-    (exitCode, stdOut, stdErr) <- readProcess (proc' prog args)
-    case exitCode of
-        ExitSuccess   -> return stdOut
-        ExitFailure _ -> throwM ((ProcessException . Lazy.toString) stdErr)
-
-  where proc' prog' args' = proc (Strict.toString prog') (fmap Strict.toString args')
+    checkRootOrExit
+    logInfo "Root found. Proceeding."
+    env <- view envVarsL
+    let Just userName = Map.lookup "SUDO_USER" env <|> Map.lookup "USER" env
+    args' <- if userName == "root"
+                   then logWarn "Cannot drop privileges." >> return args
+                   else return ("-u": toS userName: prog: fmap toS args)
+    (stdOut, _) <- proc "sudo" args' \pc -> readProcess_ pc
+    return stdOut
 
 -- Grace a Chris Taylor https://stackoverflow.com/a/19724090
 getMaxFromMap :: Ord v => Map k v -> [k]
@@ -80,3 +84,13 @@ getMaxFromMap m = go [] Nothing (Map.toList m)
 -- precision.
 showAsMbps :: Double -> Text
 showAsMbps = pack . printf "%.2fMBps" . (/ 2^23)
+
+checkRootOrExit :: (HasProcessContext env, HasLogFunc env) => RIO env ()
+checkRootOrExit = do
+    env <- view envVarsL
+    case Map.lookup "USER" env of
+        Just "root" -> return ()
+        Just _ -> do
+            logError "Must be root."
+            exitFailure
+        Nothing -> error "This should not happen: there is always USER environment variable."

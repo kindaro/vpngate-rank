@@ -1,16 +1,18 @@
 module Iperf where
 
 import RIO
+import RIO.Process
 import RIO.Orphans ()
 import qualified RIO.ByteString.Lazy as Lazy
 import Data.Aeson (eitherDecode)
 import Data.Map.Strict ((!))
+import Data.String.Conv
 
 import JsonIperf
 import Types
 import Utils
 
-options :: [ByteString]
+options :: [String]
 options =
     [ "--omit", "1"
     , "--interval", "3"
@@ -25,7 +27,7 @@ servers =
     , "speedtest.wtnet.de"
     ]
 
-choose :: HasLogFunc env => RIO env (Url, Double)
+choose :: (HasProcessContext env, HasLogFunc env) => RIO env (Url, Double)
 choose = do
     outputs <- (independent_ . fmap (cool_ delay 3 . iperf) . diag @Map) servers
     measurements <- independent_ (fmap decode outputs)
@@ -46,8 +48,8 @@ decode x = case eitherDecode x of
 speed :: TopLevel -> Double
 speed x = getReceivedSpeed x
 
-iperf :: HasLogFunc env => Url -> RIO env Lazy.ByteString
-iperf x = getProc "iperf3" (options ++ ["--client", x])
+iperf :: (HasProcessContext env, HasLogFunc env) => Url -> RIO env Lazy.ByteString
+iperf x = getProc "iperf3" (options ++ ["--client", toS x])
 
 getSentSpeed, getReceivedSpeed :: TopLevel -> Double
 getSentSpeed     = sumSentBitsPerSecond     . endSumSent     . topLevelEnd
