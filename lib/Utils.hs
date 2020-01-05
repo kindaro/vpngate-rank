@@ -9,11 +9,12 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import qualified RIO.ByteString as Strict
 import qualified RIO.ByteString.Lazy as Lazy
-import Data.Witherable
+import Data.Witherable (Witherable)
 import Text.Printf
 import RIO.Text (pack)
 import qualified RIO.Map as Map
 import Data.String.Conv
+import qualified RIO.Text as Text
 
 import Types
 
@@ -94,3 +95,24 @@ checkRootOrExit = do
             logError "Must be root."
             exitFailure
         Nothing -> error "This should not happen: there is always USER environment variable."
+
+getRealUser :: HasProcessContext env => RIO env Text
+getRealUser = do
+    env <- view envVarsL
+    case (listToMaybe . catMaybes) [Map.lookup "SUDO_USER" env, Map.lookup "USER" env] of
+        Just x  -> return x
+        Nothing -> error "This should not happen: there is always USER environment variable."
+
+getRealGroup :: (HasProcessContext env, HasLogFunc env) => RIO env Text
+getRealGroup = do
+    env <- view envVarsL
+    case Map.lookup "SUDO_GID" env of
+        Just x  -> do
+            entry <- proc "getent" ["group", toS x]
+                \processConfig -> readProcessStdout_ processConfig
+            let (group, _) = Text.break (== ':') (toS entry)
+            return group
+        Nothing -> do
+            raw <- readProcessStdout_ "id --group --name"
+            let (clean, _) = (Text.break (== '\n') . toS) raw
+            return clean
