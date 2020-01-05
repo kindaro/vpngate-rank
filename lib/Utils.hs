@@ -1,21 +1,6 @@
 {-# language TypeFamilyDependencies, MultiParamTypeClasses #-}
 
-module Utils
-    ( getProc
-    , Diag
-    , diag
-    , independent_
-    , insistent_
-    , cool_
-    , showAsMbps
-    , getMaxFromMap
-    , checkRootOrExit
-    , getRealUser
-    , getRealGroup
-    , fibers
-    , unfibers
-    )
-    where
+module Utils where
 
 import           RIO
 import           RIO.Orphans         ()

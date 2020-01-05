@@ -1,10 +1,4 @@
-module App
-    ( HasTmpDir
-    , tmpDirL
-    , runApp
-    , message
-    )
-    where
+module App where
 
 import           RIO
 import           RIO.Orphans  ()

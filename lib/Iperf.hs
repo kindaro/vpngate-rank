@@ -1,10 +1,4 @@
-module Iperf
-    ( chooseIperf
-    , measureSpeed
-    , getSentSpeed
-    , getReceivedSpeed
-    )
-    where
+module Iperf where
 
 import           RIO
 import qualified RIO.ByteString.Lazy as Lazy

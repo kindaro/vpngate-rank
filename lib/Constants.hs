@@ -1,8 +1,4 @@
-module Constants
-    ( programName
-    , sourceUrl
-    )
-    where
+module Constants where
 
 import Data.String (IsString)
 import Types

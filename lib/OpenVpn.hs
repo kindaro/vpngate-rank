@@ -1,7 +1,4 @@
-module OpenVpn
-    ( withOpenVpnConf
-    )
-    where
+module OpenVpn where
 
 import           RIO                  hiding (withTempFile)
 import           RIO.Process
@@ -11,7 +8,7 @@ import qualified Data.Text.IO         as Text
 import           Path
 import           Path.IO
 import           System.Process       (terminateProcess)
-import           Text.Megaparsec (Parsec, parseMaybe, manyTill, anySingle)
+import           Text.Megaparsec      (Parsec, anySingle, manyTill, parseMaybe)
 import           Text.Megaparsec.Byte (string)
 
 import           App

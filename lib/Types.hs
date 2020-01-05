@@ -1,9 +1,4 @@
-module Types
-    ( Url
-    , OpenVpnException(..)
-    , EncodingException(..)
-    )
-    where
+module Types where
 
 import RIO
 import Data.Char (isSpace)
