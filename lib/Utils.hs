@@ -116,3 +116,20 @@ getRealGroup = do
             raw <- readProcessStdout_ "id --group --name"
             let (clean, _) = (Text.break (== '\n') . toS) raw
             return clean
+
+fibers :: forall k v. (Ord k, Ord v) => Map k v -> Map v [k]
+fibers = Map.fromList . fmap fitting . classifyBy ((==) `on` snd) . Map.toList
+  where
+    fitting :: [(k, v)] -> (v, [k])
+    fitting ((k, v): kvs) = (v, k: fmap fst kvs)
+
+unfibers :: [(v, [k])] -> [(k, v)]
+unfibers = concatMap f where f (y, xs) = zip xs (pure y)
+
+classifyBy :: forall a f. Foldable f => (a -> a -> Bool) -> f a -> [[a]]
+classifyBy eq = foldl' f [ ]
+  where
+    f :: [[a]] -> a -> [[a]]
+    f [ ] y = [[y]]
+    f (xs@ (x: _): xss) y | x `eq` y  = (y: xs): xss
+                          | otherwise = xs: f xss y

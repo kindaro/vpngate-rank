@@ -54,26 +54,26 @@ withOpenVpn confPath action = runOpenVpn confPath
         x <- liftIO $ Text.hGetContents (getStdout process)
         logInfo $ display x
 
-    -- | The specifics of running an `openvpn` process.
-    runOpenVpn
-        :: (HasProcessContext env, HasLogFunc env)
-        => Path Abs File -> (Process () Handle () -> RIO env a) -> RIO env a
-    runOpenVpn confPath action' = do
-        user  <- getRealUser
-        group <- getRealGroup
-        let options = ["--user", toS user, "--group", toS group, "--config", fromAbsFile confPath]
-        proc "openvpn" options \processConfig' -> do
-            let processConfig = setStdout createPipe processConfig'
-            withProcessWait_ processConfig action'
+-- | The specifics of running an `openvpn` process.
+runOpenVpn
+    :: (HasProcessContext env, HasLogFunc env)
+    => Path Abs File -> (Process () Handle () -> RIO env a) -> RIO env a
+runOpenVpn confPath action' = do
+    user  <- getRealUser
+    group <- getRealGroup
+    let options = ["--user", toS user, "--group", toS group, "--config", fromAbsFile confPath]
+    proc "openvpn" options \processConfig' -> do
+        let processConfig = setStdout createPipe processConfig'
+        withProcessWait_ processConfig action'
 
-    waitForConnection :: HasLogFunc env => Handle -> RIO env ()
-    waitForConnection = whileM . fmap (isNothing . parseMaybe connected) . hGetLineWithLog
-      where
-        connected :: Parsec Void Text ()
-        connected = void (manyTill anySingle (string "Initialization Sequence Completed"))
+waitForConnection :: HasLogFunc env => Handle -> RIO env ()
+waitForConnection = whileM . fmap (isNothing . parseMaybe connected) . hGetLineWithLog
+  where
+    connected :: Parsec Void Text ()
+    connected = void (manyTill anySingle (string "Initialization Sequence Completed"))
 
-    hGetLineWithLog :: HasLogFunc env => Handle -> RIO env Text
-    hGetLineWithLog h = do
-        x <- liftIO $ Text.hGetLine h
-        logInfo $ display x
-        return x
+hGetLineWithLog :: HasLogFunc env => Handle -> RIO env Text
+hGetLineWithLog h = do
+    x <- liftIO $ Text.hGetLine h
+    logInfo $ display x
+    return x

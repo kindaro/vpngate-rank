@@ -27,6 +27,9 @@ servers =
     , "speedtest.wtnet.de"
     ]
 
+getSpeed :: (HasProcessContext env, HasLogFunc env) => Url -> RIO env Double
+getSpeed = iperf >=> decode >=> return . speed
+
 choose :: (HasProcessContext env, HasLogFunc env) => RIO env (Url, Double)
 choose = do
     outputs <- (independent_ . fmap (cool_ delay 3 . iperf) . diag @Map) servers

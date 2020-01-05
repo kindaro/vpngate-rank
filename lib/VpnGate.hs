@@ -26,7 +26,7 @@ data Entry = Entry
     , operator
     , message :: Text
     , openVPN_ConfigData_Base64 :: Strict.ByteString
-    } deriving (Generic, Show)
+    } deriving (Generic, Show, Eq, Ord)
 
 instance FromRecord Entry
 instance ToRecord Entry
