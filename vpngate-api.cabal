@@ -14,24 +14,13 @@ common commons
                  , base64-bytestring
                  , path ^>=0.6
                  , path-io
-                 , vector
-                 , from-sum
-                 , ip
                  , aeson
                  , json-alt
-                 , transformers
-                 , mtl
-                 , pretty-show
                  , megaparsec
-                 , parser-combinators
                  , extra
                  , process
-                 , utf8-string
-                 , temporary
-                 , exceptions
                  , rio
                  , rio-orphans
-                 , random
                  , sequencer
                  , containers
                  , witherable
