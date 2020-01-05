@@ -1,24 +1,37 @@
 {-# language TypeFamilyDependencies, MultiParamTypeClasses #-}
 
-module Utils where
+module Utils
+    ( getProc
+    , Diag
+    , diag
+    , independent_
+    , insistent_
+    , cool_
+    , showAsMbps
+    , getMaxFromMap
+    , checkRootOrExit
+    , getRealUser
+    , getRealGroup
+    , fibers
+    , unfibers
+    )
+    where
 
-import RIO
-import RIO.Process
-import RIO.Orphans ()
-import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-import qualified RIO.ByteString as Strict
+import           RIO
+import           RIO.Orphans         ()
+import           RIO.Process
+import qualified RIO.Text            as Text
+
+import           Data.Map.Strict     (Map)
+import qualified Data.Map.Strict     as Map
+import           Data.String.Conv
+import           Data.Witherable     (Witherable)
 import qualified RIO.ByteString.Lazy as Lazy
-import Data.Witherable (Witherable)
-import Text.Printf
-import RIO.Text (pack)
-import qualified RIO.Map as Map
-import Data.String.Conv
-import qualified RIO.Text as Text
+import           Text.Printf
 
-import Types
+import           Control.Sequencer
 
-import Control.Sequencer
+-- import Types ()
 
 class Diag (c :: * -> * -> *) a where
     type Source c a
@@ -35,23 +48,23 @@ instance Ord a => Diag Map a where
 
     diag = Map.fromList . fmap diag
 
-independent_ :: (Witherable w, HasLogFunc env) => w (RIO env a) -> RIO env (w a)
-independent_ = independent [handleAllSynchronous] log
+independent_ :: forall w env a. (Witherable w, HasLogFunc env) => w (RIO env a) -> RIO env (w a)
+independent_ = independent [handleAllSynchronous] logException
   where
-    log :: SomeException -> RIO _ ()
-    log x = logWarn ("Independent branch exception: " <> display x)
+    logException :: SomeException -> RIO env ()
+    logException x = logWarn ("Independent branch exception: " <> display x)
 
-insistent_ :: HasLogFunc env => Int -> RIO env a -> RIO env a
-insistent_ = insistent [handleAllSynchronous] log
+insistent_ :: forall env a. HasLogFunc env => Int -> RIO env a -> RIO env a
+insistent_ = insistent [handleAllSynchronous] logException
   where
-    log :: SomeException -> RIO _ ()
-    log x = logWarn ("Redundant branch exception: " <> display x)
+    logException :: SomeException -> RIO env ()
+    logException x = logWarn ("Redundant branch exception: " <> display x)
 
-cool_ :: HasLogFunc env => Int -> Int -> RIO env a -> RIO env a
-cool_ = cool [handleAllSynchronous] log
+cool_ :: forall env a. HasLogFunc env => Int -> Int -> RIO env a -> RIO env a
+cool_ = cool [handleAllSynchronous] logException
   where
-    log :: SomeException -> RIO _ ()
-    log x = logWarn ("Cool branch exception: " <> display x)
+    logException :: SomeException -> RIO env ()
+    logException x = logWarn ("Cool branch exception: " <> display x)
 
 -- | Run a process, with lowered privileges if possible, return standard output.
 getProc :: (HasProcessContext env, HasLogFunc env)
@@ -61,9 +74,10 @@ getProc prog args = do
             <> displayShow prog
             <> (mconcat . fmap ((" " <>) . displayShow)) args
     checkRootOrExit
-    logInfo "Root found. Proceeding."
     env <- view envVarsL
-    let Just userName = Map.lookup "SUDO_USER" env <|> Map.lookup "USER" env
+    let userName = case Map.lookup "SUDO_USER" env <|> Map.lookup "USER" env of
+            Nothing -> error "This should not happen: there is always USER environment variable."
+            Just x  -> x
     args' <- if userName == "root"
                    then logWarn "Cannot drop privileges." >> return args
                    else return ("-u": toS userName: prog: fmap toS args)
@@ -84,7 +98,7 @@ getMaxFromMap m = go [] Nothing (Map.toList m)
 -- | Display bits per second value as megabytes per second, with up to 2 decimal digits of
 -- precision.
 showAsMbps :: Double -> Text
-showAsMbps = pack . printf "%.2fMBps" . (/ 2^23)
+showAsMbps = Text.pack . printf "%.2fMBps" . (/ 2^(23 :: Int))
 
 checkRootOrExit :: (HasProcessContext env, HasLogFunc env) => RIO env ()
 checkRootOrExit = do
@@ -117,11 +131,12 @@ getRealGroup = do
             let (clean, _) = (Text.break (== '\n') . toS) raw
             return clean
 
-fibers :: forall k v. (Ord k, Ord v) => Map k v -> Map v [k]
+fibers :: forall k v. Ord v => Map k v -> Map v [k]
 fibers = Map.fromList . fmap fitting . classifyBy ((==) `on` snd) . Map.toList
   where
     fitting :: [(k, v)] -> (v, [k])
     fitting ((k, v): kvs) = (v, k: fmap fst kvs)
+    fitting _ = error "This should not happen: `classifyBy` always returns non-empty classes."
 
 unfibers :: [(v, [k])] -> [(k, v)]
 unfibers = concatMap f where f (y, xs) = zip xs (pure y)
@@ -133,3 +148,4 @@ classifyBy eq = foldl' f [ ]
     f [ ] y = [[y]]
     f (xs@ (x: _): xss) y | x `eq` y  = (y: xs): xss
                           | otherwise = xs: f xss y
+    f _ _ = error "This should not happen: empty lists are never created, only singletons."

@@ -1,13 +1,15 @@
-module VpnGate where
+module VpnGate
+    ( Entry
+    , getConf
+    )
+    where
 
 import RIO
 
-import Data.Csv
-import Data.Text (Text)
-import qualified Data.ByteString as Strict
 import qualified Data.ByteString.Base64 as Base64
+import           Data.Csv (FromRecord, ToRecord)
 
-import JsonIperf
+-- import JsonIperf ()
 import Types
 
 data Entry = Entry
@@ -25,7 +27,7 @@ data Entry = Entry
     , logType
     , operator
     , message :: Text
-    , openVPN_ConfigData_Base64 :: Strict.ByteString
+    , openVPN_ConfigData_Base64 :: ByteString
     } deriving (Generic, Show, Eq, Ord)
 
 instance FromRecord Entry

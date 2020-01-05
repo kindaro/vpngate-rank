@@ -1,13 +1,20 @@
-module App where
+module App
+    ( HasTmpDir
+    , tmpDirL
+    , runApp
+    , message
+    )
+    where
 
-import RIO
-import RIO.Orphans
-import qualified RIO.Process
+import           RIO
+import           RIO.Orphans  ()
+import           RIO.Process
+
 import qualified Data.Text.IO as Text
-import Path
-import Path.IO
-import Constants
-import Types
+import           Path
+import           Path.IO
+
+import           Constants
 
 class HasTmpDir env where
     tmpDirL :: Lens' env (Path Abs Dir)
@@ -42,12 +49,12 @@ runApp inner = runSimpleApp $ do
       let app = App
             { appLogFunc = logFunc
             , appProcessContext = processContext
-            , appHumanMessage = Text.putStrLn
+            , appHumanMessage = Text.putStr
             , appTmpDir = tmpDir
             }
       runRIO app inner
 
 message :: HasHumanInteraction env => Text -> RIO env ()
 message s = do
-    message <- view humanMessageL
-    liftIO $ message s
+    f <- view humanMessageL
+    liftIO $ f s

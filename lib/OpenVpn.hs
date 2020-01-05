@@ -1,20 +1,21 @@
-module OpenVpn where
+module OpenVpn
+    ( withOpenVpnConf
+    )
+    where
 
-import RIO hiding (withTempFile)
-import RIO.Process
-import Path
-import Path.IO
-import Text.Megaparsec
-import Text.Megaparsec.Byte
-import Control.Monad.Extra
-import RIO.Text (Text)
-import qualified Data.Text.IO as Text
-import System.Process (terminateProcess)
-import Data.String.Conv
+import           RIO                  hiding (withTempFile)
+import           RIO.Process
 
-import Utils
-import Types
-import App
+import           Control.Monad.Extra  (whileM)
+import qualified Data.Text.IO         as Text
+import           Path
+import           Path.IO
+import           System.Process       (terminateProcess)
+import           Text.Megaparsec (Parsec, parseMaybe, manyTill, anySingle)
+import           Text.Megaparsec.Byte (string)
+
+import           App
+import           Types
 
 -- | Launch `openvpn` process with the given configuration, wait for it to connect, run the given
 -- action and disconnect.

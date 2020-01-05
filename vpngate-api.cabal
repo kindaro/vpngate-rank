@@ -60,8 +60,6 @@ common commons
         -Wredundant-constraints
         -Wnoncanonical-monad-instances
         -Wnoncanonical-monadfail-instances
-        -fdefer-typed-holes
-        -Wno-unused-imports
 
 library
     import: commons

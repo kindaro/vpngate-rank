@@ -1,16 +1,23 @@
-module Iperf where
+module Iperf
+    ( chooseIperf
+    , measureSpeed
+    , getSentSpeed
+    , getReceivedSpeed
+    )
+    where
 
-import RIO
-import RIO.Process
-import RIO.Orphans ()
+import           RIO
 import qualified RIO.ByteString.Lazy as Lazy
-import Data.Aeson (eitherDecode)
-import Data.Map.Strict ((!))
-import Data.String.Conv
+import           RIO.Orphans         ()
+import           RIO.Process
 
-import JsonIperf
-import Types
-import Utils
+import           Data.Aeson          (eitherDecode)
+import           Data.Map.Strict     ((!))
+import           Data.String.Conv
+
+import           JsonIperf
+import           Types
+import           Utils
 
 options :: [String]
 options =
@@ -27,11 +34,11 @@ servers =
     , "speedtest.wtnet.de"
     ]
 
-getSpeed :: (HasProcessContext env, HasLogFunc env) => Url -> RIO env Double
-getSpeed = iperf >=> decode >=> return . speed
+measureSpeed :: (HasProcessContext env, HasLogFunc env) => Url -> RIO env Double
+measureSpeed = iperf >=> decode >=> return . speed
 
-choose :: (HasProcessContext env, HasLogFunc env) => RIO env (Url, Double)
-choose = do
+chooseIperf :: (HasProcessContext env, HasLogFunc env) => RIO env (Url, Double)
+chooseIperf = do
     outputs <- (independent_ . fmap (cool_ delay 3 . iperf) . diag @Map) servers
     measurements <- independent_ (fmap decode outputs)
     let speeds :: Map Url Double

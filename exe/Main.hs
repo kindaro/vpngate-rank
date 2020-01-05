@@ -1,44 +1,42 @@
 module Main where
 
-import RIO
-import RIO.Orphans ()
-import RIO.Process
-import RIO.Map (toDescList)
+import           RIO
+import qualified RIO.ByteString.Lazy        as Lazy
+import           RIO.Map                    (toDescList)
+import           RIO.Orphans                ()
+import           RIO.Process
 
-import qualified RIO.ByteString.Lazy as Lazy
 import qualified Data.ByteString.Lazy.Char8 as Lazy (lines, unlines)
-import qualified Data.ByteString as Strict (isPrefixOf)
-import qualified Data.ByteString.Char8 as Strict (lines, unlines)
-import System.Environment (getArgs)
-import Data.Csv (HasHeader(..))
-import qualified Data.Csv as Csv
-import qualified RIO.Text as Text
-import qualified RIO.Vector as Vector
-import Path
-import Text.Show.Pretty
-import Data.String.Conv
+import           Data.Csv                   (HasHeader (..))
+import qualified Data.Csv                   as Csv
 
-import Control.Sequencer
-
-import VpnGate (Entry, getConf)
-import OpenVpn
-import Iperf (getSpeed)
-import qualified Iperf as Iperf
-import Types
-import Utils
-import Constants
-import App
+import           App
+import           Constants
+import           Iperf
+import           OpenVpn
+import           Types
+import           Utils
+import           VpnGate
 
 default (Text)
 
 main :: IO ()
 main = runApp do
     checkRootOrExit
-    (iperf, maxSpeed) <- Iperf.choose
+    (iperf, maxSpeed) <- chooseIperf
+    logInfo $ "Selected iperf server " <> displayShow iperf
+               <> " with speed " <> display (showAsMbps maxSpeed) <> "."
     entries <- getEntries
+    logInfo $ "Loaded " <> displayShow (length entries) <> " VPN entries."
     rankedEntries <- rankEntries iperf entries
-    message $ "Max iperf speed: " <> tshow maxSpeed
-    traverse_ (message . tshow) rankedEntries
+    traverse_ (logInfo . displayShow) rankedEntries
+    case rankedEntries of
+        [ ] -> logWarn "Unfortunately, no VPNs responded."
+        ((entry, _): _) -> do
+            logInfo $ "The fastest VPN entry: " <> displayShow entry
+            conf <- getConf entry
+            message $ "Configuration:\n\n" <> conf
+
 
 getEntries :: (HasProcessContext env, HasLogFunc env) => RIO env [Entry]
 getEntries = do
@@ -56,25 +54,14 @@ rankEntries
     :: (HasProcessContext env, HasLogFunc env, HasTmpDir env)
     => Url -> [Entry] -> RIO env [(Entry, Double)]
 rankEntries iperfUrl entries = do
-    measuredEntries <- traverse (getConf >=> getSpeedOverVpn iperfUrl) (diag @Map entries)
+    measuredEntries <- independent_ $ fmap (getConf >=> getSpeedOverVpn iperfUrl)
+                                    $ diag @Map entries
     let sortedEntries = (unfibers . toDescList . fibers) measuredEntries
     return sortedEntries
-
-    -- rows <- either (throwM . Error) pure $ decode @Row HasHeader body
-    -- logWarn $ "Done parsing! Number of entries: " <> display (Vector.length rows)
-
-    -- -- Loop over the configurations, measuring each.
-    -- measurements <- independent @_ @_ @_ @_ @Vector [Handler \e -> return (e :: SomeException)] (logWarn . displayShow) $ fmap (obtainConf >=> measureOvpn) rows
-
-    -- logWarn "Maximal speed:"
-    -- logWarn . display . Text.pack . ppShow . catMaybes . Vector.toList $ measurements
 
 getSpeedOverVpn
     :: (HasProcessContext env, HasLogFunc env, HasTmpDir env)
     => Url -> Text -> RIO env Double
-getSpeedOverVpn iperfUrl openVpnConf = withOpenVpnConf openVpnConf (getSpeed iperfUrl)
-
--- measureOvpn :: HasLogFunc env => Text -> RIO env (Maybe (Domain, Double))
--- measureOvpn conf = withOpenVpn (Conf conf) runIperfs >>= \r -> case r of
---     Left e -> (logWarn . display . Text.pack . ppShow) e >> return Nothing
---     Right (domain, result) -> (return . Just) (domain, getReceivedSpeed result)
+getSpeedOverVpn iperfUrl openVpnConf = cool_ 1 10
+                                     $ withOpenVpnConf openVpnConf
+                                     $ measureSpeed iperfUrl

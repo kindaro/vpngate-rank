@@ -1,6 +1,10 @@
-module Constants where
+module Constants
+    ( programName
+    , sourceUrl
+    )
+    where
 
-import Data.String
+import Data.String (IsString)
 import Types
 
 programName :: IsString a => a

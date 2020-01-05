@@ -1,19 +1,14 @@
-module Types where
+module Types
+    ( Url
+    , OpenVpnException(..)
+    , EncodingException(..)
+    )
+    where
 
 import RIO
-import Data.Char
-
--- * Convenient type synonyms.
+import Data.Char (isSpace)
 
 type Url = String
-
-
--- * Various pieces of data.
-
-data Meta
-
-
--- * Exceptions.
 
 data EncodingException = EncodingException String deriving Show
 
