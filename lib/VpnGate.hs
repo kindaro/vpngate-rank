@@ -5,7 +5,6 @@ import RIO
 import qualified Data.ByteString.Base64 as Base64
 import           Data.Csv (FromRecord, ToRecord)
 
--- import JsonIperf ()
 import Types
 
 data Entry = Entry

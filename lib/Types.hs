@@ -17,6 +17,11 @@ instance Exception ProcessException where
         then "Process exited with error."
         else "Process exited with error. StdErr: \n" ++ s
 
+data TimeoutException = TimeoutException deriving Show
+
+instance Exception TimeoutException where
+    displayException _ = "IO action timed out."
+
 data OpenVpnException = OpenVpnException String deriving Show
 
 instance Exception OpenVpnException

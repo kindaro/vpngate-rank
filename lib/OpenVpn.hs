@@ -3,7 +3,8 @@ module OpenVpn where
 import           RIO                  hiding (withTempFile)
 import           RIO.Process
 
-import           Control.Monad.Extra  (whileM)
+import qualified RIO.Text             as Text
+import           Control.Monad.Loops  (unfoldM)
 import qualified Data.Text.IO         as Text
 import           Path
 import           Path.IO
@@ -44,13 +45,14 @@ withOpenVpn confPath action = runOpenVpn confPath
     initialize process = do
         let output = getStdout process
         hSetBuffering output LineBuffering
-        waitForConnection output
+        itSays <- waitForConnection output
+        logDebug $ display itSays
 
     terminate :: Process () Handle () -> RIO env ()
     terminate process = do
         liftIO $ terminateProcess (unsafeProcessHandle process)
-        x <- liftIO $ Text.hGetContents (getStdout process)
-        logInfo $ display x
+        itSays <- liftIO $ Text.hGetContents (getStdout process)
+        logDebug $ display itSays
 
 -- | The specifics of running an `openvpn` process.
 runOpenVpn
@@ -71,14 +73,14 @@ runOpenVpn confPath action' = do
         let processConfig = setStdout createPipe processConfig'
         withProcessWait_ processConfig action'
 
-waitForConnection :: HasLogFunc env => Handle -> RIO env ()
-waitForConnection = whileM . fmap (isNothing . parseMaybe connected) . hGetLineWithLog
+waitForConnection :: Handle -> RIO env Text
+waitForConnection h = fmap Text.unlines $ unfoldM do
+    line <- liftIO $ Text.hGetLine h
+    return case parseMaybe connected line of
+        Just () -> Nothing
+        Nothing -> Just line
+
+  -- whileM . fmap (isNothing . parseMaybe connected) . hGetLineWithLog
   where
     connected :: Parsec Void Text ()
     connected = void (manyTill anySingle (string "Initialization Sequence Completed"))
-
-hGetLineWithLog :: HasLogFunc env => Handle -> RIO env Text
-hGetLineWithLog h = do
-    x <- liftIO $ Text.hGetLine h
-    logInfo $ display x
-    return x

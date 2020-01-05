@@ -17,7 +17,7 @@ common commons
                  , aeson
                  , json-alt
                  , megaparsec
-                 , extra
+                 , monad-loops
                  , process
                  , rio
                  , rio-orphans

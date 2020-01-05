@@ -6,6 +6,7 @@ import           RIO.Map                    (toDescList)
 import           RIO.Orphans                ()
 import           RIO.Process
 
+import           Data.Bifunctor
 import qualified Data.ByteString.Lazy.Char8 as Lazy (lines, unlines)
 import           Data.Csv                   (HasHeader (..))
 import qualified Data.Csv                   as Csv
@@ -23,20 +24,22 @@ default (Text)
 main :: IO ()
 main = runApp do
     checkRootOrExit
-    (iperf, maxSpeed) <- chooseIperf
-    logInfo $ "Selected iperf server " <> displayShow iperf
+    logInfo "Measuring iperf servers..."
+    (iperfUrl, maxSpeed) <- chooseIperf
+    logInfo $ "Selected iperf server " <> displayShow iperfUrl
                <> " with speed " <> display (showAsMbps maxSpeed) <> "."
+    logInfo "Loading VPN entries..."
     entries <- getEntries
     logInfo $ "Loaded " <> displayShow (length entries) <> " VPN entries."
-    rankedEntries <- rankEntries iperf entries
-    traverse_ (logInfo . displayShow) rankedEntries
+    logInfo "Ranking entries..."
+    rankedEntries <- rankEntries iperfUrl entries
+    traverse_ (logInfo . displayShow . bimap entry_hostName showAsMbps) rankedEntries
     case rankedEntries of
         [ ] -> logWarn "Unfortunately, no VPNs responded."
         ((entry, _): _) -> do
             logInfo $ "The fastest VPN entry: " <> displayShow entry
             conf <- getConf entry
-            message $ "Configuration:\n\n" <> conf
-
+            message conf
 
 getEntries :: (HasProcessContext env, HasLogFunc env) => RIO env [Entry]
 getEntries = do
@@ -62,6 +65,8 @@ rankEntries iperfUrl entries = do
 getSpeedOverVpn
     :: (HasProcessContext env, HasLogFunc env, HasTmpDir env)
     => Url -> Text -> RIO env Double
-getSpeedOverVpn iperfUrl openVpnConf = cool_ 1 10
-                                     $ withOpenVpnConf openVpnConf
-                                     $ measureSpeed iperfUrl
+getSpeedOverVpn iperfUrl openVpnConf = cool_ 1 3 do
+    -- I allot 10 seconds to initialization, while another 10 seconds are taken by the iperf run.
+    x <- timeout (20 * 10^(6 :: Int))
+            $ withOpenVpnConf openVpnConf $ cool_ 1 3 (measureSpeed iperfUrl)
+    maybe (throwM TimeoutException) return $ x

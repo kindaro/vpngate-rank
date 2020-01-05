@@ -55,7 +55,7 @@ cool_ = cool [handleAllSynchronous] logException
 getProc :: (HasProcessContext env, HasLogFunc env)
         => String -> [String] -> RIO env Lazy.ByteString
 getProc prog args = do
-    logInfo $ "Running external program: "
+    logDebug $ "Running external program: "
             <> displayShow prog
             <> (mconcat . fmap ((" " <>) . displayShow)) args
     checkRootOrExit
