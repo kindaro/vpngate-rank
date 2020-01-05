@@ -59,9 +59,16 @@ runOpenVpn
     :: (HasProcessContext env, HasLogFunc env)
     => Path Abs File -> (Process () Handle () -> RIO env a) -> RIO env a
 runOpenVpn confPath action' = do
-    user  <- getRealUser
-    group <- getRealGroup
-    let options = ["--user", toS user, "--group", toS group, "--config", fromAbsFile confPath]
+    -- user  <- getRealUser
+    -- group <- getRealGroup
+    let options =
+          [ "--config", fromAbsFile confPath
+          -- , "--user", toS user
+          -- , "--group", toS group
+          , "--connect-retry-max", "1"  -- Try to connect once, then exit.
+          , "--resolv-retry", "0"  -- If name resolution fails, exit.
+          , "--connect-timeout", "10"  -- Wait for 10 seconds for the remote to answer.
+          ]
     proc "openvpn" options \processConfig' -> do
         let processConfig = setStdout createPipe processConfig'
         withProcessWait_ processConfig action'
